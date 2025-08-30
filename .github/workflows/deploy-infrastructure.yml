@@ -1,0 +1,72 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - 'infrastructure/**'
+      - 'environments/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+
+env:
+  AZURE_SUBSCRIPTION_ID: d4d5edc0-d0d0-491c-8d55-4bf5481b5b49
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set Environment Variables
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || 'dev' }}"
+        echo "ENVIRONMENT_NAME=$ENV_NAME" >> $GITHUB_ENV
+        echo "RESOURCE_GROUP_NAME=pdf-ai-agent-rg-$ENV_NAME" >> $GITHUB_ENV
+        echo "LOCATION=westus2" >> $GITHUB_ENV
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Resource Group
+      run: |
+        az group create \
+          --name ${{ env.RESOURCE_GROUP_NAME }} \
+          --location ${{ env.LOCATION }}
+    
+    - name: Deploy Infrastructure
+      run: |
+        az deployment group create \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --template-file infrastructure/bicep/main.bicep \
+          --parameters environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json \
+          --parameters userObjectId="${{ secrets.USER_OBJECT_ID }}" \
+          --name "infrastructure-$(date +%Y%m%d-%H%M%S)"
+    
+    - name: Get Deployment Outputs
+      id: outputs
+      run: |
+        OUTPUTS=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name $(az deployment group list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv) \
+          --query 'properties.outputs' -o json)
+        echo "deployment-outputs=$OUTPUTS" >> $GITHUB_OUTPUT
+    
+    - name: Update Environment Secrets
+      run: |
+        # Extract Key Vault name from outputs and update GitHub environment secrets
+        KEY_VAULT_NAME=$(echo '${{ steps.outputs.outputs.deployment-outputs }}' | jq -r '.keyVaultName.value')
+        echo "KEY_VAULT_URL=https://$KEY_VAULT_NAME.vault.azure.net/" >> $GITHUB_ENV
