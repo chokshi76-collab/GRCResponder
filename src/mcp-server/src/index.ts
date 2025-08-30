@@ -3,6 +3,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';
 
 // Create MCP Server instance
 const server = new Server(
@@ -17,8 +18,22 @@ const server = new Server(
     }
 );
 
+// Define request schemas using Zod
+const toolsCallRequestSchema = z.object({
+    method: z.literal('tools/call'),
+    params: z.object({
+        name: z.string(),
+        arguments: z.unknown().optional()
+    })
+});
+
+const toolsListRequestSchema = z.object({
+    method: z.literal('tools/list'),
+    params: z.unknown()
+});
+
 // Tool: Process PDF
-server.setRequestHandler('tools/call', async (request) => {
+server.setRequestHandler(toolsCallRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     switch (name) {
@@ -73,12 +88,12 @@ server.setRequestHandler('tools/call', async (request) => {
             };
 
         default:
-            throw new Error('Unknown tool: ' + name);
+            throw new Error(`Unknown tool: ${name}`);
     }
 });
 
 // List available tools
-server.setRequestHandler('tools/list', async () => {
+server.setRequestHandler(toolsListRequestSchema, async () => {
     return {
         tools: [
             {
