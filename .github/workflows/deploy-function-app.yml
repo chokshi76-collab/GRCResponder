@@ -1,0 +1,45 @@
+name: Deploy MCP Server to Azure Function App
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/mcp-server/**'
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_NAME: func-pdfai-dev-tjqwgu4v
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './src/mcp-server'
+  NODE_VERSION: '18.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 'Checkout GitHub Action'
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package.json
+
+    - name: 'Install dependencies'
+      run: |
+        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        npm ci
+
+    - name: 'Build TypeScript'
+      run: |
+        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        npm run build
+
+    - name: 'Deploy to Azure Function App'
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
