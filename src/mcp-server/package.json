@@ -21,7 +21,8 @@
     "mssql": "^10.0.2",
     "puppeteer": "^21.11.0",
     "csv-parser": "^3.0.0",
-    "csv-stringify": "^6.4.6"
+    "csv-stringify": "^6.4.6",
+    "@azure/functions": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
