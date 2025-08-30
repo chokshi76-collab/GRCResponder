@@ -95,7 +95,8 @@ async function httpTrigger(request: HttpRequest, context: InvocationContext): Pr
 
     // Handle tool execution requests
     if (method === 'post' && path === 'call') {
-        const body = await request.json();
+        // Fix: Use a type assertion to inform TypeScript about the expected JSON body structure.
+        const body = (await request.json()) as { name: string; arguments?: any };
         const { name, arguments: args } = body || {};
 
         let responseText = '';
