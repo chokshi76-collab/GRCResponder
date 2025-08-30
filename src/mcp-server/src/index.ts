@@ -1,21 +1,22 @@
 // PDF AI Agent MCP Server - Azure Function App Entry Point
-// Deployment timestamp: 2025-08-30 07:15:00
+// Deployment timestamp: 2025-08-30 08:00:00
 
-import { AzureFunction, Context, HttpRequest } from "@azure/functions";
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 
 // Azure Function HTTP handler
-const httpTrigger: AzureFunction = async function (context: Context, req: HttpRequest): Promise<void> {
+async function httpTrigger(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     context.log('PDF AI Agent MCP Server HTTP trigger function processed a request.');
 
-    const method = req.method?.toLowerCase();
-    const path = req.params?.path || '';
+    const method = request.method.toLowerCase();
+    const pathSegments = request.url.split('/');
+    const path = pathSegments[pathSegments.length - 1] || '';
 
     // Handle MCP protocol requests
-    if (method === 'post' && path === 'tools/list') {
-        context.res = {
+    if (method === 'post' && path === 'list') {
+        return {
             status: 200,
             headers: { "Content-Type": "application/json" },
-            body: {
+            jsonBody: {
                 tools: [
                     {
                         name: 'process_pdf',
@@ -90,12 +91,12 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
                 ]
             }
         };
-        return;
     }
 
     // Handle tool execution requests
-    if (method === 'post' && path === 'tools/call') {
-        const { name, arguments: args } = req.body || {};
+    if (method === 'post' && path === 'call') {
+        const body = await request.json();
+        const { name, arguments: args } = body || {};
 
         let responseText = '';
         switch (name) {
@@ -115,17 +116,16 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
                 responseText = 'CSV query tool - SQL database integration coming soon';
                 break;
             default:
-                context.res = {
+                return {
                     status: 400,
-                    body: { error: `Unknown tool: ${name}` }
+                    jsonBody: { error: `Unknown tool: ${name}` }
                 };
-                return;
         }
 
-        context.res = {
+        return {
             status: 200,
             headers: { "Content-Type": "application/json" },
-            body: {
+            jsonBody: {
                 content: [
                     {
                         type: 'text',
@@ -134,15 +134,14 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
                 ]
             }
         };
-        return;
     }
 
     // Health check endpoint
-    if (method === 'get' && !path) {
-        context.res = {
+    if (method === 'get') {
+        return {
             status: 200,
             headers: { "Content-Type": "application/json" },
-            body: {
+            jsonBody: {
                 status: 'healthy',
                 service: 'PDF AI Agent MCP Server',
                 version: '1.0.0',
@@ -154,17 +153,22 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
                 ]
             }
         };
-        return;
     }
 
     // Default response for unknown paths
-    context.res = {
+    return {
         status: 404,
-        body: {
+        jsonBody: {
             error: 'Not Found',
             message: 'Available endpoints: GET /api/mcp, POST /api/mcp/tools/list, POST /api/mcp/tools/call'
         }
     };
-};
+}
 
-export default httpTrigger;
+// Register the HTTP trigger
+app.http('mcp', {
+    methods: ['GET', 'POST'],
+    route: 'mcp/{*path}',
+    authLevel: 'anonymous',
+    handler: httpTrigger
+});
