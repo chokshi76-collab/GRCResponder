@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'src/mcp-server/**'
+      - '.github/workflows/**'
   workflow_dispatch:
 
 env:
@@ -27,10 +28,16 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package.json
 
-    - name: 'Install dependencies'
+    - name: 'Install dependencies (flexible)'
       run: |
         cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        npm ci
+        if [ -f package-lock.json ]; then
+          echo "Using npm ci with package-lock.json"
+          npm ci
+        else
+          echo "Using npm install (no package-lock.json found)"
+          npm install
+        fi
 
     - name: 'Build TypeScript'
       run: |
