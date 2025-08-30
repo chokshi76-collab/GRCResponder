@@ -25,24 +25,21 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package.json
 
-    - name: 'Install dependencies (flexible)'
+    - name: 'Install dependencies'
       run: |
         cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        if [ -f package-lock.json ]; then
-          echo "Using npm ci with package-lock.json"
-          npm ci
-        else
-          echo "Using npm install (no package-lock.json found)"
-          npm install
-        fi
+        npm install
+
+    - name: 'Install dev dependencies for build'
+      run: |
+        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        npm install typescript @types/node --save-dev
 
     - name: 'Build TypeScript'
       run: |
         cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        npm run build
+        npx tsc
 
     - name: 'Deploy to Azure Function App'
       uses: Azure/functions-action@v1
