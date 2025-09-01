@@ -76,7 +76,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         perform_stats: { type: "boolean", default: true },
                         detect_types: { type: "boolean", default: true },
-                        clean_data: { type: "boolean", default: true } // FIXED: A comma was added here.
+                        clean_data: { type: "boolean", default: true }, // Corrected: Added missing comma.
                     }
                 }
             },
@@ -161,7 +161,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         top: { type: "integer", minimum: 1, maximum: 50, default: 10 },
                         include_highlights: { type: "boolean", default: true },
-                        semantic_search: { type: "boolean", default: true } // FIXED: A comma was added here.
+                        semantic_search: { type: "boolean", default: true }, // Corrected: Added missing comma.
                     }
                 }
             },
@@ -537,7 +537,7 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                 break;
 
             default:
-                return createResponse(false, null, `Tool '${toolName}' execution not implemented`, 501, context.invocationId);
+                return createResponse(false, null, `Tool '${toolName}' not implemented`, 501, context.invocationId);
         }
 
         return createResponse(true, result, undefined, 200, context.invocationId);
@@ -568,3 +568,10 @@ export async function healthCheck(request: HttpRequest, context: Context): Promi
 
     return createResponse(true, healthData, undefined, 200, context.invocationId);
 }
+
+<br>
+<br>
+<br>
+
+<a href="https://www.youtube.com/watch?v=7t3Usyqf_o0">How to solve the "module has no exported member" error?</a><br>This video provides an explanation and solution for the "module has no exported member" error, which is similar to the syntax errors that were fixed in your script.
+http://googleusercontent.com/youtube_content/2
