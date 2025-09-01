@@ -1,3 +1,11 @@
+# Create Universal REST API for PDF AI Agent Platform
+# This replaces the MCP-specific implementation with a universal HTTP API
+
+Write-Host "Creating Universal REST API for multi-AI platform compatibility..." -ForegroundColor Green
+Write-Host "This API will work with Claude, Copilot, ChatGPT, and any AI model!" -ForegroundColor Cyan
+
+# Create the Universal REST API TypeScript code
+$universalApiCode = @'
 import { Context, HttpRequest, HttpResponseInit } from "@azure/functions";
 
 // API Response interface for consistent formatting
@@ -568,3 +576,25 @@ export async function healthCheck(request: HttpRequest, context: Context): Promi
 
     return createResponse(true, healthData, undefined, 200, context.invocationId);
 }
+'@
+
+Write-Host "Creating Universal REST API implementation..." -ForegroundColor Yellow
+$apiCodePath = "src/mcp-server/src/index.ts"
+$universalApiCode | Out-File -FilePath $apiCodePath -Encoding UTF8
+
+Write-Host "✅ Universal REST API code created!" -ForegroundColor Green
+Write-Host ""
+Write-Host "API Endpoints Created:" -ForegroundColor Cyan
+Write-Host "📋 GET  /api/docs        - OpenAPI/Swagger documentation" -ForegroundColor White
+Write-Host "❤️  GET  /api/health     - Health check and service status" -ForegroundColor White  
+Write-Host "🔧 GET  /api/tools       - List all available tools" -ForegroundColor White
+Write-Host "⚡ POST /api/tools/{name} - Execute specific tool" -ForegroundColor White
+Write-Host ""
+Write-Host "Universal Tool Names:" -ForegroundColor Cyan
+Write-Host "• process_pdf      - PDF document processing" -ForegroundColor White
+Write-Host "• analyze_csv      - CSV data analysis and storage" -ForegroundColor White
+Write-Host "• scrape_website   - Web content scraping" -ForegroundColor White
+Write-Host "• search_documents - Vector document search" -ForegroundColor White
+Write-Host "• query_csv_data   - Natural language database queries" -ForegroundColor White
+Write-Host ""
+Write-Host "Next step: Deploy to Azure and test with any AI model!" -ForegroundColor Yellow
