@@ -1,0 +1,22 @@
+{
+  "scriptFile": "../dist/index.js",
+  "bindings": [
+    {
+      "methods": [
+        "get",
+        "options"
+      ],
+      "authLevel": "anonymous",
+      "direction": "in",
+      "route": "health",
+      "name": "req",
+      "type": "httpTrigger"
+    },
+    {
+      "name": "res",
+      "type": "http",
+      "direction": "out"
+    }
+  ],
+  "entryPoint": "healthCheck"
+}

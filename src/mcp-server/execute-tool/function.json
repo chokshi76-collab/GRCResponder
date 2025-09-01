@@ -1,0 +1,22 @@
+{
+  "scriptFile": "../dist/index.js",
+  "bindings": [
+    {
+      "methods": [
+        "post",
+        "options"
+      ],
+      "authLevel": "anonymous",
+      "direction": "in",
+      "route": "tools/{toolName}",
+      "name": "req",
+      "type": "httpTrigger"
+    },
+    {
+      "name": "res",
+      "type": "http",
+      "direction": "out"
+    }
+  ],
+  "entryPoint": "executeTool"
+}

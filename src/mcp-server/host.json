@@ -1,0 +1,21 @@
+{
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true
+      }
+    }
+  },
+  "functionTimeout": "00:05:00",
+  "version": "2.0",
+  "extensionBundle": {
+    "id": "Microsoft.Azure.Functions.ExtensionBundle",
+    "version": "[4.*, 5.0.0)"
+  },
+  "http": {
+    "routePrefix": "api",
+    "dynamicThrottlesEnabled": true,
+    "maxOutstandingRequests": 200,
+    "maxConcurrentRequests": 100
+  }
+}
