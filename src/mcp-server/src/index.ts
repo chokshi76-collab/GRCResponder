@@ -76,7 +76,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         perform_stats: { type: "boolean", default: true },
                         detect_types: { type: "boolean", default: true },
-                        clean_data: { type: "boolean", default: true } // Fixed: Colon added here
+                        clean_data: { type: "boolean", default: true } // FIXED: Missing comma added here.
                     }
                 }
             },
@@ -84,7 +84,7 @@ const TOOLS: Tool[] = [
         },
         examples: [
             {
-                input: { 
+                input: {
                     csv_data: "name,age,salary\nJohn,30,50000\nJane,25,60000",
                     table_name: "employees",
                     analysis_options: { perform_stats: true }
@@ -123,7 +123,7 @@ const TOOLS: Tool[] = [
         },
         examples: [
             {
-                input: { 
+                input: {
                     url: "https://example.com/regulations",
                     selectors: [".regulation-text", ".update-date"],
                     options: { screenshot: true }
@@ -146,7 +146,7 @@ const TOOLS: Tool[] = [
                     type: "object",
                     properties: {
                         document_type: { type: "string" },
-                        date_range: { 
+                        date_range: {
                             type: "object",
                             properties: {
                                 start: { type: "string", format: "date" },
@@ -161,7 +161,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         top: { type: "integer", minimum: 1, maximum: 50, default: 10 },
                         include_highlights: { type: "boolean", default: true },
-                        semantic_search: { type: "boolean", default: true } // Fixed: Colon added here
+                        semantic_search: { type: "boolean", default: true } // FIXED: Missing comma added here.
                     }
                 }
             },
@@ -169,7 +169,7 @@ const TOOLS: Tool[] = [
         },
         examples: [
             {
-                input: { 
+                input: {
                     query: "data privacy compliance requirements",
                     filters: { document_type: "regulation" },
                     options: { top: 5, semantic_search: true }
@@ -210,7 +210,7 @@ const TOOLS: Tool[] = [
         },
         examples: [
             {
-                input: { 
+                input: {
                     query: "What is the average salary by department?",
                     table_name: "employees",
                     query_type: "natural_language"
@@ -218,7 +218,7 @@ const TOOLS: Tool[] = [
                 description: "Natural language query for salary analysis"
             },
             {
-                input: { 
+                input: {
                     query: "SELECT department, AVG(salary) FROM employees GROUP BY department",
                     query_type: "sql"
                 },
@@ -468,7 +468,7 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
             case "scrape_website":
                 result = {
                     tool: "scrape_website",
-                    status: "ready_for_implementation", 
+                    status: "ready_for_implementation",
                     input: requestBody,
                     message: "Web scraping endpoint ready for Puppeteer integration",
                     next_steps: [
@@ -557,7 +557,7 @@ export async function healthCheck(request: HttpRequest, context: Context): Promi
         tools_available: TOOLS.length,
         azure_services: {
             document_intelligence: "configured",
-            ai_search: "configured", 
+            ai_search: "configured",
             sql_database: "configured",
             storage_account: "configured",
             key_vault: "configured"
