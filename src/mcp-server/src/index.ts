@@ -288,7 +288,7 @@ app.http('execute-tool', {
                 },
                 body: JSON.stringify({
                     error: 'Invalid JSON in request body',
-                    details: error.message
+                    details: error instanceof Error ? error.message : String(error)
                 })
             };
         }
@@ -339,7 +339,7 @@ app.http('execute-tool', {
                 body: JSON.stringify({
                     error: 'Tool execution failed',
                     tool: toolName,
-                    details: error.message,
+                    details: error instanceof Error ? error.message : String(error),
                     timestamp: new Date().toISOString()
                 })
             };
