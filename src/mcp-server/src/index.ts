@@ -1,472 +1,427 @@
-import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
+import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
-// API Response interface for consistent formatting
-interface ApiResponse<T = any> {
-    success: boolean;
-    data?: T;
-    error?: string;
-    timestamp: string;
-    requestId?: string;
-}
-
-// Tool definition interface
-interface Tool {
-    name: string;
-    description: string;
-    parameters: {
-        type: string;
-        properties: Record<string, any>;
-        required: string[];
-    };
-    examples: Array<{
-        input: Record<string, any>;
-        description: string;
-    }>;
-}
-
-// Universal Tool Definitions
-const TOOLS: Tool[] = [
+// Define the tools that our Universal AI API supports
+const AVAILABLE_TOOLS = [
     {
         name: "process_pdf",
-        description: "Process PDF documents using Azure Document Intelligence to extract text, tables, forms, and document structure",
+        description: "Process PDF documents using Azure Document Intelligence to extract text, tables, and structure",
         parameters: {
             type: "object",
             properties: {
-                pdf_url: {
+                file_path: {
                     type: "string",
-                    description: "URL or path to the PDF file to process"
+                    description: "Path to the PDF file to process"
                 },
                 analysis_type: {
                     type: "string",
-                    enum: ["layout", "document", "prebuilt-document", "prebuilt-invoice", "prebuilt-receipt"],
-                    default: "document",
+                    enum: ["text", "tables", "layout", "comprehensive"],
                     description: "Type of analysis to perform on the PDF"
                 }
             },
-            required: ["pdf_url"]
-        },
-        examples: [
-            {
-                input: { pdf_url: "https://example.com/document.pdf", analysis_type: "document" },
-                description: "Extract all text and structure from a general document"
-            },
-            {
-                input: { pdf_url: "https://example.com/invoice.pdf", analysis_type: "prebuilt-invoice" },
-                description: "Process an invoice with specialized field extraction"
-            }
-        ]
+            required: ["file_path"]
+        }
     },
     {
         name: "analyze_csv",
-        description: "Analyze CSV data, perform statistical analysis, and store results in SQL database for querying",
+        description: "Analyze CSV data and store results in SQL database with intelligent data profiling",
         parameters: {
             type: "object",
             properties: {
-                csv_data: {
+                file_path: {
                     type: "string",
-                    description: "CSV content as string or base64 encoded data"
+                    description: "Path to the CSV file to analyze"
                 },
                 table_name: {
                     type: "string",
-                    description: "Name for the database table to store results",
-                    pattern: "^[a-zA-Z][a-zA-Z0-9_]*$"
+                    description: "Name for the database table to store results"
                 },
                 analysis_options: {
-                    type: "object",
-                    properties: {
-                        perform_stats: { type: "boolean", default: true },
-                        detect_types: { type: "boolean", default: true },
-                        clean_data: { type: "boolean", default: true }
-                    }
+                    type: "array",
+                    items: {
+                        type: "string",
+                        enum: ["statistics", "data_quality", "patterns", "outliers"]
+                    },
+                    description: "Types of analysis to perform"
                 }
             },
-            required: ["csv_data"]
-        },
-        examples: [
-            {
-                input: {
-                    csv_data: "name,age,salary\nJohn,30,50000\nJane,25,60000",
-                    table_name: "employees",
-                    analysis_options: { perform_stats: true }
-                },
-                description: "Analyze employee data and store with statistics"
-            }
-        ]
+            required: ["file_path", "table_name"]
+        }
     },
     {
         name: "scrape_website",
-        description: "Scrape website content using Puppeteer for compliance monitoring and document collection",
+        description: "Scrape website content using Puppeteer for regulatory document monitoring",
         parameters: {
             type: "object",
             properties: {
                 url: {
                     type: "string",
                     format: "uri",
-                    description: "Website URL to scrape"
+                    description: "URL of the website to scrape"
                 },
                 selectors: {
                     type: "array",
                     items: { type: "string" },
-                    description: "CSS selectors to extract specific content"
+                    description: "CSS selectors for content to extract"
                 },
-                options: {
-                    type: "object",
-                    properties: {
-                        wait_for: { type: "string", description: "CSS selector to wait for before scraping" },
-                        screenshot: { type: "boolean", default: false },
-                        pdf_export: { type: "boolean", default: false },
-                        follow_links: { type: "boolean", default: false }
-                    }
+                wait_for: {
+                    type: "string",
+                    description: "Element to wait for before scraping"
+                },
+                screenshot: {
+                    type: "boolean",
+                    description: "Whether to take a screenshot"
                 }
             },
             required: ["url"]
-        },
-        examples: [
-            {
-                input: {
-                    url: "https://example.com/regulations",
-                    selectors: [".regulation-text", ".update-date"],
-                    options: { screenshot: true }
-                },
-                description: "Scrape regulatory content with screenshot"
-            }
-        ]
+        }
     },
     {
         name: "search_documents",
-        description: "Search processed documents using Azure AI Search with vector similarity and semantic search",
+        description: "Search documents using Azure AI Search with vector similarity and semantic search",
         parameters: {
             type: "object",
             properties: {
                 query: {
                     type: "string",
-                    description: "Natural language search query"
+                    description: "Search query text"
                 },
                 filters: {
                     type: "object",
-                    properties: {
-                        document_type: { type: "string" },
-                        date_range: {
-                            type: "object",
-                            properties: {
-                                start: { type: "string", format: "date" },
-                                end: { type: "string", format: "date" }
-                            }
-                        },
-                        source: { type: "string" }
-                    }
+                    description: "Search filters to apply"
                 },
-                options: {
-                    type: "object",
-                    properties: {
-                        top: { type: "integer", minimum: 1, maximum: 50, default: 10 },
-                        include_highlights: { type: "boolean", default: true },
-                        semantic_search: { type: "boolean", default: true }
-                    }
+                top_k: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 100,
+                    description: "Number of results to return"
+                },
+                search_type: {
+                    type: "string",
+                    enum: ["vector", "text", "hybrid"],
+                    description: "Type of search to perform"
                 }
             },
             required: ["query"]
-        },
-        examples: [
-            {
-                input: {
-                    query: "data privacy compliance requirements",
-                    filters: { document_type: "regulation" },
-                    options: { top: 5, semantic_search: true }
-                },
-                description: "Search for privacy regulations with semantic understanding"
-            }
-        ]
+        }
     },
     {
         name: "query_csv_data",
-        description: "Query structured CSV data from SQL database using natural language or SQL",
+        description: "Query CSV data stored in SQL database using natural language",
         parameters: {
             type: "object",
             properties: {
-                query: {
-                    type: "string",
-                    description: "Natural language question or SQL query"
-                },
                 table_name: {
                     type: "string",
-                    description: "Name of the table to query"
+                    description: "Name of the database table to query"
+                },
+                query: {
+                    type: "string",
+                    description: "Natural language query or SQL query"
                 },
                 query_type: {
                     type: "string",
                     enum: ["natural_language", "sql"],
-                    default: "natural_language",
-                    description: "Type of query - natural language or direct SQL"
-                },
-                options: {
-                    type: "object",
-                    properties: {
-                        limit: { type: "integer", minimum: 1, maximum: 1000, default: 100 },
-                        format: { type: "string", enum: ["json", "csv", "table"], default: "json" }
-                    }
+                    description: "Type of query being provided"
                 }
             },
-            required: ["query"]
-        },
-        examples: [
-            {
-                input: {
-                    query: "What is the average salary by department?",
-                    table_name: "employees",
-                    query_type: "natural_language"
-                },
-                description: "Natural language query for salary analysis"
-            },
-            {
-                input: {
-                    query: "SELECT department, AVG(salary) FROM employees GROUP BY department",
-                    query_type: "sql"
-                },
-                description: "Direct SQL query for salary analysis"
-            }
-        ]
+            required: ["table_name", "query"]
+        }
     }
 ];
 
-// Utility function to create consistent API responses
-function createResponse<T>(
-    success: boolean,
-    data?: T,
-    error?: string,
-    status: number = 200,
-    requestId?: string
-): HttpResponseInit {
-    const response: ApiResponse<T> = {
-        success,
-        data,
-        error,
-        timestamp: new Date().toISOString(),
-        requestId
-    };
+// Health check endpoint
+app.http('health', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'health',
+    handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+        context.log('Health check requested');
+        
+        return {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: 'healthy',
+                timestamp: new Date().toISOString(),
+                version: '1.0.0',
+                service: 'PDF AI Agent Universal API'
+            })
+        };
+    }
+});
 
-    return {
-        status,
-        headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        },
-        body: JSON.stringify(response, null, 2)
-    };
-}
-
-// API Documentation endpoint
-export async function apiDocs(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    const openApiSpec = {
-        openapi: "3.0.0",
-        info: {
-            title: "PDF AI Agent - Universal AI Tool Platform",
-            version: "1.0.0",
-            description: "Universal REST API for AI-powered document processing, compliance monitoring, and data analysis. Compatible with any AI model or application.",
-            contact: {
-                name: "PDF AI Agent API",
-                url: "https://github.com/chokshi76-collab/GRCResponder"
-            }
-        },
-        servers: [
-            {
-                url: "https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api",
-                description: "Development Environment"
-            }
-        ],
-        paths: {
-            "/tools": {
-                get: {
-                    summary: "List all available tools",
-                    description: "Returns a list of all available AI tools with their descriptions and parameters",
-                    responses: {
-                        "200": {
-                            description: "List of available tools"
+// API documentation endpoint
+app.http('docs', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'docs',
+    handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+        context.log('API documentation requested');
+        
+        const openApiSpec = {
+            openapi: '3.0.0',
+            info: {
+                title: 'PDF AI Agent Universal API',
+                version: '1.0.0',
+                description: 'Universal REST API for AI-powered document processing and analysis tools'
+            },
+            servers: [
+                {
+                    url: 'https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api',
+                    description: 'Development server'
+                }
+            ],
+            paths: {
+                '/health': {
+                    get: {
+                        summary: 'Health check',
+                        responses: {
+                            '200': {
+                                description: 'Service is healthy'
+                            }
+                        }
+                    }
+                },
+                '/tools': {
+                    get: {
+                        summary: 'List available tools',
+                        responses: {
+                            '200': {
+                                description: 'List of available tools'
+                            }
+                        }
+                    }
+                },
+                '/tools/{name}': {
+                    post: {
+                        summary: 'Execute a tool',
+                        parameters: [
+                            {
+                                name: 'name',
+                                in: 'path',
+                                required: true,
+                                schema: { type: 'string' }
+                            }
+                        ],
+                        responses: {
+                            '200': {
+                                description: 'Tool execution result'
+                            }
                         }
                     }
                 }
-            },
-            "/tools/{toolName}": {
-                post: {
-                    summary: "Execute a specific tool",
-                    description: "Execute any of the available AI tools with the provided parameters",
-                    parameters: [
-                        {
-                            name: "toolName",
-                            in: "path",
-                            required: true,
-                            schema: { type: "string" },
-                            description: "Name of the tool to execute"
-                        }
-                    ]
-                }
             }
-        }
-    };
-
-    return createResponse(true, openApiSpec, undefined, 200, context.invocationId);
-}
-
-// List all tools endpoint
-export async function listTools(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    try {
-        const toolsData = {
-            tools: TOOLS,
-            total_count: TOOLS.length,
-            categories: ["document_processing", "data_analysis", "web_scraping", "search", "database"],
-            api_version: "1.0.0"
         };
 
-        return createResponse(true, toolsData, undefined, 200, context.invocationId);
-    } catch (error: any) {
-        return createResponse(false, null, `Failed to list tools: ${error.message}`, 500, context.invocationId);
+        return {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(openApiSpec, null, 2)
+        };
     }
-}
+});
+
+// List available tools endpoint
+app.http('tools', {
+    methods: ['GET'],
+    authLevel: 'anonymous',
+    route: 'tools',
+    handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+        context.log('Tools list requested');
+        
+        return {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                tools: AVAILABLE_TOOLS,
+                count: AVAILABLE_TOOLS.length,
+                service: 'PDF AI Agent Universal API',
+                timestamp: new Date().toISOString()
+            })
+        };
+    }
+});
 
 // Execute tool endpoint
-export async function executeTool(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    try {
-        // Get toolName from URL parameters
-        const url = new URL(request.url);
-        const pathParts = url.pathname.split('/');
-        const toolName = pathParts[pathParts.length - 1];
+app.http('execute-tool', {
+    methods: ['POST'],
+    authLevel: 'anonymous',
+    route: 'tools/{name}',
+    handler: async (request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> => {
+        const toolName = request.params.name;
+        context.log(`Tool execution requested: ${toolName}`);
         
-        // Safely parse request body
-        let requestBody: any = {};
-        try {
-            const rawBody = await request.text();
-            if (rawBody && rawBody.trim()) {
-                requestBody = JSON.parse(rawBody);
-            }
-        } catch (parseError) {
-            return createResponse(false, null, "Invalid JSON in request body", 400, context.invocationId);
-        }
-
-        // Find the requested tool
-        const tool = TOOLS.find(t => t.name === toolName);
+        // Validate tool exists
+        const tool = AVAILABLE_TOOLS.find(t => t.name === toolName);
         if (!tool) {
-            return createResponse(false, null, `Tool '${toolName}' not found. Available tools: ${TOOLS.map(t => t.name).join(', ')}`, 404, context.invocationId);
+            return {
+                status: 404,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: 'Tool not found',
+                    available_tools: AVAILABLE_TOOLS.map(t => t.name)
+                })
+            };
         }
 
-        // Execute tool logic
-        let result: any;
-
-        switch (toolName) {
-            case "process_pdf":
-                result = {
-                    tool: "process_pdf",
-                    status: "ready_for_implementation",
-                    input: requestBody,
-                    message: "PDF processing endpoint ready for Azure Document Intelligence SDK integration",
-                    placeholder_response: {
-                        document_id: `doc_${Date.now()}`,
-                        pages: 1,
-                        extracted_text: "Sample extracted text would appear here...",
-                        tables_found: 0,
-                        forms_found: 0,
-                        confidence_score: 0.95
-                    }
-                };
-                break;
-
-            case "analyze_csv":
-                result = {
-                    tool: "analyze_csv",
-                    status: "ready_for_implementation",
-                    input: requestBody,
-                    message: "CSV analysis endpoint ready for SQL database integration",
-                    placeholder_response: {
-                        table_created: requestBody.table_name || "csv_data_" + Date.now(),
-                        rows_processed: 100,
-                        columns_detected: 5,
-                        data_types: { "id": "integer", "name": "string", "value": "number" },
-                        statistics: { "mean_value": 42.5, "max_value": 100, "min_value": 1 }
-                    }
-                };
-                break;
-
-            case "scrape_website":
-                result = {
-                    tool: "scrape_website",
-                    status: "ready_for_implementation",
-                    input: requestBody,
-                    message: "Web scraping endpoint ready for Puppeteer integration",
-                    placeholder_response: {
-                        url_scraped: requestBody.url,
-                        content_length: 1024,
-                        elements_found: 15,
-                        screenshot_url: "https://example.com/screenshot.png",
-                        scraped_at: new Date().toISOString()
-                    }
-                };
-                break;
-
-            case "search_documents":
-                result = {
-                    tool: "search_documents",
-                    status: "ready_for_implementation",
-                    input: requestBody,
-                    message: "Document search endpoint ready for Azure AI Search integration",
-                    placeholder_response: {
-                        query: requestBody.query,
-                        results_found: 5,
-                        results: [
-                            { document_id: "doc1", title: "Sample Document", score: 0.89, highlights: ["relevant text..."] },
-                            { document_id: "doc2", title: "Another Document", score: 0.76, highlights: ["matching content..."] }
-                        ],
-                        search_time_ms: 45
-                    }
-                };
-                break;
-
-            case "query_csv_data":
-                result = {
-                    tool: "query_csv_data",
-                    status: "ready_for_implementation",
-                    input: requestBody,
-                    message: "CSV querying endpoint ready for SQL database integration",
-                    placeholder_response: {
-                        query_executed: requestBody.query,
-                        sql_generated: "SELECT * FROM table WHERE condition",
-                        rows_returned: 10,
-                        execution_time_ms: 23,
-                        data: [
-                            { id: 1, name: "Sample Row 1", value: 100 },
-                            { id: 2, name: "Sample Row 2", value: 200 }
-                        ]
-                    }
-                };
-                break;
-
-            default:
-                return createResponse(false, null, `Tool '${toolName}' not implemented`, 501, context.invocationId);
+        // Parse request body
+        let parameters = {};
+        try {
+            const bodyText = await request.text();
+            if (bodyText) {
+                const requestBody = JSON.parse(bodyText);
+                parameters = requestBody.parameters || {};
+            }
+        } catch (error) {
+            return {
+                status: 400,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: 'Invalid JSON in request body',
+                    details: error.message
+                })
+            };
         }
 
-        return createResponse(true, result, undefined, 200, context.invocationId);
-    } catch (error: any) {
-        return createResponse(false, null, `Tool execution failed: ${error.message}`, 500, context.invocationId);
+        // Execute the tool (placeholder implementations for now)
+        let result;
+        try {
+            switch (toolName) {
+                case 'process_pdf':
+                    result = await processPdf(parameters, context);
+                    break;
+                case 'analyze_csv':
+                    result = await analyzeCsv(parameters, context);
+                    break;
+                case 'scrape_website':
+                    result = await scrapeWebsite(parameters, context);
+                    break;
+                case 'search_documents':
+                    result = await searchDocuments(parameters, context);
+                    break;
+                case 'query_csv_data':
+                    result = await queryCsvData(parameters, context);
+                    break;
+                default:
+                    throw new Error(`Tool ${toolName} not implemented`);
+            }
+
+            return {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    tool: toolName,
+                    result: result,
+                    timestamp: new Date().toISOString(),
+                    status: 'success'
+                })
+            };
+
+        } catch (error) {
+            context.error(`Error executing tool ${toolName}:`, error);
+            return {
+                status: 500,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: 'Tool execution failed',
+                    tool: toolName,
+                    details: error.message,
+                    timestamp: new Date().toISOString()
+                })
+            };
+        }
     }
+});
+
+// Placeholder tool implementations (to be replaced with real Azure SDK integrations)
+async function processPdf(parameters: any, context: InvocationContext) {
+    context.log('Processing PDF with parameters:', parameters);
+    
+    return {
+        message: 'PDF processing completed (placeholder)',
+        file_path: parameters.file_path || 'unknown',
+        analysis_type: parameters.analysis_type || 'text',
+        extracted_text: 'Sample extracted text from PDF...',
+        pages: 5,
+        tables_found: 2,
+        confidence: 0.95,
+        next_steps: 'Replace with Azure Document Intelligence SDK integration'
+    };
 }
 
-// Health check endpoint
-export async function healthCheck(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-    const healthData = {
-        status: "healthy",
-        service: "PDF AI Agent Universal API",
-        version: "1.0.0",
-        environment: "development",
-        tools_available: TOOLS.length,
-        azure_services: {
-            document_intelligence: "configured",
-            ai_search: "configured",
-            sql_database: "configured",
-            storage_account: "configured",
-            key_vault: "configured"
-        },
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
+async function analyzeCsv(parameters: any, context: InvocationContext) {
+    context.log('Analyzing CSV with parameters:', parameters);
+    
+    return {
+        message: 'CSV analysis completed (placeholder)',
+        file_path: parameters.file_path || 'unknown',
+        table_name: parameters.table_name || 'unknown',
+        rows_processed: 1000,
+        columns_analyzed: 15,
+        data_quality_score: 0.87,
+        anomalies_detected: 3,
+        next_steps: 'Replace with SQL database integration'
     };
+}
 
-    return createResponse(true, healthData, undefined, 200, context.invocationId);
+async function scrapeWebsite(parameters: any, context: InvocationContext) {
+    context.log('Scraping website with parameters:', parameters);
+    
+    return {
+        message: 'Website scraping completed (placeholder)',
+        url: parameters.url || 'unknown',
+        content_extracted: 'Sample scraped content...',
+        elements_found: parameters.selectors?.length || 0,
+        screenshot_taken: parameters.screenshot || false,
+        timestamp: new Date().toISOString(),
+        next_steps: 'Replace with Puppeteer implementation'
+    };
+}
+
+async function searchDocuments(parameters: any, context: InvocationContext) {
+    context.log('Searching documents with parameters:', parameters);
+    
+    return {
+        message: 'Document search completed (placeholder)',
+        query: parameters.query || 'unknown',
+        results_found: 10,
+        top_k: parameters.top_k || 10,
+        search_type: parameters.search_type || 'hybrid',
+        results: [
+            { id: '1', title: 'Sample Document 1', score: 0.95 },
+            { id: '2', title: 'Sample Document 2', score: 0.87 }
+        ],
+        next_steps: 'Replace with Azure AI Search SDK integration'
+    };
+}
+
+async function queryCsvData(parameters: any, context: InvocationContext) {
+    context.log('Querying CSV data with parameters:', parameters);
+    
+    return {
+        message: 'CSV query completed (placeholder)',
+        table_name: parameters.table_name || 'unknown',
+        query: parameters.query || 'unknown',
+        query_type: parameters.query_type || 'natural_language',
+        rows_returned: 25,
+        results: [
+            { column1: 'value1', column2: 'value2' },
+            { column1: 'value3', column2: 'value4' }
+        ],
+        next_steps: 'Replace with SQL database query implementation'
+    };
 }
