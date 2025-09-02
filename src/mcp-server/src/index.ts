@@ -569,9 +569,3 @@ export async function healthCheck(request: HttpRequest, context: Context): Promi
     return createResponse(true, healthData, undefined, 200, context.invocationId);
 }
 
-<br>
-<br>
-<br>
-
-<a href="https://www.youtube.com/watch?v=7t3Usyqf_o0">How to solve the "module has no exported member" error?</a><br>This video provides an explanation and solution for the "module has no exported member" error, which is similar to the syntax errors that were fixed in your script.
-http://googleusercontent.com/youtube_content/2
