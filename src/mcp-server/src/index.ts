@@ -1,4 +1,4 @@
-import { Context, HttpRequest, HttpResponseInit } from "@azure/functions";
+import { HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
 // API Response interface for consistent formatting
 interface ApiResponse<T = any> {
@@ -257,7 +257,7 @@ function createResponse<T>(
 }
 
 // API Documentation endpoint
-export async function apiDocs(request: HttpRequest, context: Context): Promise<HttpResponseInit> {
+export async function apiDocs(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const openApiSpec = {
         openapi: "3.0.0",
         info: {
@@ -282,28 +282,7 @@ export async function apiDocs(request: HttpRequest, context: Context): Promise<H
                     description: "Returns a list of all available AI tools with their descriptions and parameters",
                     responses: {
                         "200": {
-                            description: "List of available tools",
-                            content: {
-                                "application/json": {
-                                    schema: {
-                                        type: "object",
-                                        properties: {
-                                            success: { type: "boolean" },
-                                            data: {
-                                                type: "object",
-                                                properties: {
-                                                    tools: {
-                                                        type: "array",
-                                                        items: { $ref: "#/components/schemas/Tool" }
-                                                    },
-                                                    total_count: { type: "integer" }
-                                                }
-                                            },
-                                            timestamp: { type: "string", format: "date-time" }
-                                        }
-                                    }
-                                }
-                            }
+                            description: "List of available tools"
                         }
                     }
                 }
@@ -320,66 +299,7 @@ export async function apiDocs(request: HttpRequest, context: Context): Promise<H
                             schema: { type: "string" },
                             description: "Name of the tool to execute"
                         }
-                    ],
-                    requestBody: {
-                        required: true,
-                        content: {
-                            "application/json": {
-                                schema: {
-                                    type: "object",
-                                    description: "Tool-specific parameters"
-                                }
-                            }
-                        }
-                    },
-                    responses: {
-                        "200": {
-                            description: "Tool execution result",
-                            content: {
-                                "application/json": {
-                                    schema: { $ref: "#/components/schemas/ApiResponse" }
-                                }
-                            }
-                        },
-                        "400": {
-                            description: "Invalid parameters or tool not found"
-                        },
-                        "500": {
-                            description: "Internal server error"
-                        }
-                    }
-                }
-            }
-        },
-        components: {
-            schemas: {
-                Tool: {
-                    type: "object",
-                    properties: {
-                        name: { type: "string" },
-                        description: { type: "string" },
-                        parameters: { type: "object" },
-                        examples: {
-                            type: "array",
-                            items: {
-                                type: "object",
-                                properties: {
-                                    input: { type: "object" },
-                                    description: { type: "string" }
-                                }
-                            }
-                        }
-                    }
-                },
-                ApiResponse: {
-                    type: "object",
-                    properties: {
-                        success: { type: "boolean" },
-                        data: { type: "object" },
-                        error: { type: "string" },
-                        timestamp: { type: "string", format: "date-time" },
-                        requestId: { type: "string" }
-                    }
+                    ]
                 }
             }
         }
@@ -389,7 +309,7 @@ export async function apiDocs(request: HttpRequest, context: Context): Promise<H
 }
 
 // List all tools endpoint
-export async function listTools(request: HttpRequest, context: Context): Promise<HttpResponseInit> {
+export async function listTools(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     try {
         const toolsData = {
             tools: TOOLS,
@@ -405,15 +325,18 @@ export async function listTools(request: HttpRequest, context: Context): Promise
 }
 
 // Execute tool endpoint
-export async function executeTool(request: HttpRequest, context: Context): Promise<HttpResponseInit> {
+export async function executeTool(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     try {
-        const toolName = context.bindingData?.toolName as string;
+        // Get toolName from URL parameters
+        const url = new URL(request.url);
+        const pathParts = url.pathname.split('/');
+        const toolName = pathParts[pathParts.length - 1];
         
-        // Safely parse request body with proper typing
+        // Safely parse request body
         let requestBody: any = {};
         try {
             const rawBody = await request.text();
-            if (rawBody) {
+            if (rawBody && rawBody.trim()) {
                 requestBody = JSON.parse(rawBody);
             }
         } catch (parseError) {
@@ -426,7 +349,7 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
             return createResponse(false, null, `Tool '${toolName}' not found. Available tools: ${TOOLS.map(t => t.name).join(', ')}`, 404, context.invocationId);
         }
 
-        // Execute tool logic (placeholder implementations ready for Azure SDK integration)
+        // Execute tool logic
         let result: any;
 
         switch (toolName) {
@@ -436,12 +359,6 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                     status: "ready_for_implementation",
                     input: requestBody,
                     message: "PDF processing endpoint ready for Azure Document Intelligence SDK integration",
-                    next_steps: [
-                        "Install @azure/ai-form-recognizer package",
-                        "Implement Document Intelligence client",
-                        "Add PDF analysis logic",
-                        "Return structured document data"
-                    ],
                     placeholder_response: {
                         document_id: `doc_${Date.now()}`,
                         pages: 1,
@@ -459,12 +376,6 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                     status: "ready_for_implementation",
                     input: requestBody,
                     message: "CSV analysis endpoint ready for SQL database integration",
-                    next_steps: [
-                        "Install mssql package",
-                        "Implement database connection",
-                        "Add CSV parsing and analysis",
-                        "Store results in SQL database"
-                    ],
                     placeholder_response: {
                         table_created: requestBody.table_name || "csv_data_" + Date.now(),
                         rows_processed: 100,
@@ -481,12 +392,6 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                     status: "ready_for_implementation",
                     input: requestBody,
                     message: "Web scraping endpoint ready for Puppeteer integration",
-                    next_steps: [
-                        "Install puppeteer package",
-                        "Implement browser automation",
-                        "Add content extraction logic",
-                        "Return scraped data"
-                    ],
                     placeholder_response: {
                         url_scraped: requestBody.url,
                         content_length: 1024,
@@ -503,12 +408,6 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                     status: "ready_for_implementation",
                     input: requestBody,
                     message: "Document search endpoint ready for Azure AI Search integration",
-                    next_steps: [
-                        "Install @azure/search-documents package",
-                        "Implement search client",
-                        "Add vector similarity search",
-                        "Return ranked results"
-                    ],
                     placeholder_response: {
                         query: requestBody.query,
                         results_found: 5,
@@ -527,12 +426,6 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
                     status: "ready_for_implementation",
                     input: requestBody,
                     message: "CSV querying endpoint ready for SQL database integration",
-                    next_steps: [
-                        "Implement natural language to SQL conversion",
-                        "Add database query execution",
-                        "Format results based on requested format",
-                        "Return query results"
-                    ],
                     placeholder_response: {
                         query_executed: requestBody.query,
                         sql_generated: "SELECT * FROM table WHERE condition",
@@ -557,7 +450,7 @@ export async function executeTool(request: HttpRequest, context: Context): Promi
 }
 
 // Health check endpoint
-export async function healthCheck(request: HttpRequest, context: Context): Promise<HttpResponseInit> {
+export async function healthCheck(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
     const healthData = {
         status: "healthy",
         service: "PDF AI Agent Universal API",
