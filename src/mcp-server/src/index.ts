@@ -76,7 +76,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         perform_stats: { type: "boolean", default: true },
                         detect_types: { type: "boolean", default: true },
-                        clean_data: { type: "boolean", default: true }, // Corrected: Added missing comma.
+                        clean_data: { type: "boolean", default: true },
                     }
                 }
             },
@@ -161,7 +161,7 @@ const TOOLS: Tool[] = [
                     properties: {
                         top: { type: "integer", minimum: 1, maximum: 50, default: 10 },
                         include_highlights: { type: "boolean", default: true },
-                        semantic_search: { type: "boolean", default: true }, // Corrected: Added missing comma.
+                        semantic_search: { type: "boolean", default: true },
                     }
                 }
             },
@@ -568,4 +568,3 @@ export async function healthCheck(request: HttpRequest, context: Context): Promi
 
     return createResponse(true, healthData, undefined, 200, context.invocationId);
 }
-
