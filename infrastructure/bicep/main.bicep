@@ -312,16 +312,15 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
-// Add this module call at the end of your main.bicep file
+// Add this module call at the end of your main.bicep file - SUBSCRIPTION SCOPE
 module servicePrincipalPermissions 'service-principal-permissions.bicep' = if (deployServicePrincipalPermissions) {
   name: 'servicePrincipalPermissions'
+  scope: subscription()
   params: {
     servicePrincipalObjectId: githubActionsServicePrincipalId
     resourceGroupName: resourceGroup().name
-    subscriptionId: subscription().subscriptionId
   }
 }
-
 
 // Outputs
 output keyVaultName string = keyVault.name
