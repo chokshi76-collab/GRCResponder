@@ -77,11 +77,12 @@ jobs:
         echo "Deploying infrastructure to environment: $ENVIRONMENT"
         echo "Resource Group: $RESOURCE_GROUP"
         
-        # Deploy using the built JSON
+        # Deploy using the built JSON with missing parameter
         az deployment group create \
           --resource-group $RESOURCE_GROUP \
           --template-file infrastructure/bicep/main.json \
           --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
+          --parameters userObjectId="402ed151-67f7-4f36-bc74-ac2b9c9e1980" \
           --name "main-$(date +%Y%m%d-%H%M%S)" \
           --verbose
         
