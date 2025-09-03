@@ -1,12 +1,15 @@
 ﻿{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "environmentName": {
-      "value": "dev"
-    },
-    "keyVaultAccessObjectId": {
-      "value": "402ed151-67f7-4f36-bc74-ac2b9c9e1980"
-    }
-  }
+    "$schema":  "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion":  "1.0.0.0",
+    "parameters":  {
+                       "environmentName":  {
+                                               "value":  "dev"
+                                           },
+                       "keyVaultAccessObjectId":  {
+                                                      "value":  "402ed151-67f7-4f36-bc74-ac2b9c9e1980"
+                                                  },
+                       "userObjectId":  {
+                                            "value":  "402ed151-67f7-4f36-bc74-ac2b9c9e1980"
+                                        }
+                   }
 }
