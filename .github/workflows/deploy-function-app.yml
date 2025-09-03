@@ -5,6 +5,11 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
 
 env:
   AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -22,10 +27,7 @@ jobs:
     - name: Azure Login with Service Principal
       uses: azure/login@v1
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: false
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Deploy Infrastructure
       uses: azure/arm-deploy@v1
@@ -73,26 +75,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Wait for deployment
-      run: sleep 30
+      run: sleep 60
 
     - name: Test Health Endpoint
       run: |
-        response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/health)
-        echo "Health endpoint returned: $response"
-        if [ $response -eq 200 ]; then
-          echo "✅ Health endpoint is working!"
-        else
-          echo "❌ Health endpoint failed with status: $response"
-          exit 1
-        fi
+        echo "Testing health endpoint..."
+        for i in {1..5}; do
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/health)
+          echo "Attempt $i: Health endpoint returned: $response"
+          if [ $response -eq 200 ]; then
+            echo "✅ Health endpoint is working!"
+            break
+          elif [ $i -eq 5 ]; then
+            echo "❌ Health endpoint failed after 5 attempts"
+            exit 1
+          else
+            echo "Retrying in 30 seconds..."
+            sleep 30
+          fi
+        done
 
     - name: Test Tools Endpoint
       run: |
+        echo "Testing tools endpoint..."
         response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/tools)
         echo "Tools endpoint returned: $response"
         if [ $response -eq 200 ]; then
           echo "✅ Tools endpoint is working!"
         else
           echo "❌ Tools endpoint failed with status: $response"
+          # Get actual response for debugging
+          curl -s https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/tools || echo "Failed to get response"
           exit 1
         fi
