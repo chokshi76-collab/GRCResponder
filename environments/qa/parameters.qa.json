@@ -10,6 +10,12 @@
         },
         "userObjectId": {
             "value": "402ed151-67f7-4f36-bc74-ac2b9c9e1980"
+        },
+        "deployServicePrincipalPermissions": {
+            "value": true
+        },
+        "githubActionsServicePrincipalId": {
+            "value": "fc6bf2d2-9da2-49d8-a673-4eab4d4b2b44"
         }
     }
 }

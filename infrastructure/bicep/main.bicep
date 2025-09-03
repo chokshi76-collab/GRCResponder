@@ -7,6 +7,16 @@ param location string = resourceGroup().location
 @description('User Object ID for Key Vault access')
 param userObjectId string
 
+// Add this module call to your existing main.bicep file
+// This should be added near the top, after your existing parameters
+
+@description('Deploy service principal permissions for GitHub Actions')
+param deployServicePrincipalPermissions bool = true
+
+@description('GitHub Actions service principal object ID')
+param githubActionsServicePrincipalId string = 'fc6bf2d2-9da2-49d8-a673-4eab4d4b2b44'
+
+
 // Generate unique names with environment suffix
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 var keyVaultName = 'kv-pdfai-${uniqueSuffix}'
@@ -302,6 +312,17 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
+// Add this module call at the end of your main.bicep file
+module servicePrincipalPermissions 'service-principal-permissions.bicep' = if (deployServicePrincipalPermissions) {
+  name: 'servicePrincipalPermissions'
+  params: {
+    servicePrincipalObjectId: githubActionsServicePrincipalId
+    resourceGroupName: resourceGroup().name
+    subscriptionId: subscription().subscriptionId
+  }
+}
+
+
 // Outputs
 output keyVaultName string = keyVault.name
 output documentIntelligenceName string = documentIntelligence.name
@@ -310,3 +331,4 @@ output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
 output functionAppName string = functionApp.name
+output servicePrincipalPermissionsDeployed bool = deployServicePrincipalPermissions
