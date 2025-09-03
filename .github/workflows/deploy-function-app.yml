@@ -29,11 +29,11 @@ jobs:
     - name: Set environment variables
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-          echo "RESOURCE_GROUP=pdf-ai-agent-rg-prod" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
           echo "ENVIRONMENT=qa" >> $GITHUB_ENV
           echo "RESOURCE_GROUP=pdf-ai-agent-rg-qa" >> $GITHUB_ENV
+        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
         else
           echo "ENVIRONMENT=dev" >> $GITHUB_ENV
           echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
