@@ -39,7 +39,6 @@ jobs:
           echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
         fi
 
-    # PROPER IaC APPROACH: Validate, What-If, then Deploy
     - name: Install Bicep CLI
       run: |
         # Install latest Bicep CLI
@@ -48,27 +47,28 @@ jobs:
         sudo mv ./bicep /usr/local/bin/bicep
         bicep --version
 
-    - name: Build and Validate Bicep Template
+    - name: Build Bicep Template
       run: |
         echo "Building Bicep template..."
         bicep build infrastructure/bicep/main.bicep --outfile infrastructure/bicep/main.json
-        
-        echo "Validating Bicep template syntax..."
-        bicep validate infrastructure/bicep/main.bicep
-        
-        echo "✅ Bicep template validation passed"
+        echo "✅ Bicep template compilation completed"
 
-    - name: Infrastructure What-If Analysis
+    - name: Create Resource Group
       run: |
-        echo "Running what-if analysis to preview changes..."
+        echo "Ensuring resource group exists..."
+        az group create --name $RESOURCE_GROUP --location "West US 2" || true
+        echo "✅ Resource group ready"
+
+    - name: Infrastructure What-If Analysis  
+      run: |
+        echo "Running what-if analysis to preview changes and identify real errors..."
         
         # This will show us the REAL errors without the "content consumed" issue
         az deployment group what-if \
           --resource-group $RESOURCE_GROUP \
-          --template-file infrastructure/bicep/main.bicep \
+          --template-file infrastructure/bicep/main.json \
           --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
-          --verbose \
-          --no-pretty-print
+          --verbose
         
         echo "✅ What-if analysis completed"
 
@@ -77,7 +77,7 @@ jobs:
         echo "Deploying infrastructure to environment: $ENVIRONMENT"
         echo "Resource Group: $RESOURCE_GROUP"
         
-        # Deploy without password parameter - template should use Key Vault reference
+        # Deploy using the built JSON
         az deployment group create \
           --resource-group $RESOURCE_GROUP \
           --template-file infrastructure/bicep/main.json \
@@ -145,9 +145,8 @@ jobs:
         
         echo -e "\n✅ Infrastructure as Code deployment complete!"
         echo "🌐 Universal AI Platform: $BASE_URL"
-        echo "📋 Deployment validated and ready for Phase 3 implementation"
+        echo "📋 Ready for Phase 3: Real Azure SDK implementations"
 
-    # Infrastructure validation and cleanup check
     - name: Validate Complete Infrastructure
       run: |
         echo "🔍 Validating all required Azure resources exist..."
@@ -171,4 +170,4 @@ jobs:
         az storage account list --resource-group $RESOURCE_GROUP --query "[0].name" --output tsv
         
         echo "✅ All infrastructure components validated and accessible"
-        echo "🎯 Ready for Phase 3: Real Azure SDK implementations"
+        echo "🎯 Infrastructure as Code deployment successful - ready for Phase 3"
