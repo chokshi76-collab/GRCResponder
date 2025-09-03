@@ -1,49 +1,98 @@
-name: Deploy MCP Server to Azure Function App
+name: Deploy Function App
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'src/mcp-server/**'
-      - '.github/workflows/**'
-  workflow_dispatch:
+  pull_request:
+    branches: [ main ]
 
 env:
-  AZURE_FUNCTIONAPP_NAME: func-pdfai-dev-tjqwgu4v
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: './src/mcp-server'
-  NODE_VERSION: '18.x'
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ENVIRONMENT_NAME: dev
+  RESOURCE_GROUP_NAME: pdf-ai-agent-rg-dev
+  LOCATION: westus2
 
 jobs:
-  build-and-deploy:
+  deploy-infrastructure:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: 'Checkout GitHub Action'
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure Login with Service Principal
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: false
+
+    - name: Deploy Infrastructure
+      uses: azure/arm-deploy@v1
+      with:
+        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        resourceGroupName: ${{ env.RESOURCE_GROUP_NAME }}
+        template: ./infrastructure/bicep/main.bicep
+        parameters: ./environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json
+        failOnStdErr: false
+
+  deploy-function-app:
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
       uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: ${{ env.NODE_VERSION }}
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: './src/mcp-server/package-lock.json'
 
-    - name: 'Install dependencies'
+    - name: Install dependencies
       run: |
-        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        npm install
+        cd src/mcp-server
+        npm ci
 
-    - name: 'Install dev dependencies for build'
+    - name: Build TypeScript
       run: |
-        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        npm install typescript @types/node --save-dev
+        cd src/mcp-server
+        npm run build
 
-    - name: 'Build TypeScript'
-      run: |
-        cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        npx tsc
-
-    - name: 'Deploy to Azure Function App'
+    - name: Deploy to Azure Function App
       uses: Azure/functions-action@v1
       with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        app-name: 'func-pdfai-dev-tjqwgu4v'
+        slot-name: 'production'
+        package: './src/mcp-server'
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+  verify-deployment:
+    needs: deploy-function-app
+    runs-on: ubuntu-latest
+    steps:
+    - name: Wait for deployment
+      run: sleep 30
+
+    - name: Test Health Endpoint
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/health)
+        echo "Health endpoint returned: $response"
+        if [ $response -eq 200 ]; then
+          echo "✅ Health endpoint is working!"
+        else
+          echo "❌ Health endpoint failed with status: $response"
+          exit 1
+        fi
+
+    - name: Test Tools Endpoint
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/tools)
+        echo "Tools endpoint returned: $response"
+        if [ $response -eq 200 ]; then
+          echo "✅ Tools endpoint is working!"
+        else
+          echo "❌ Tools endpoint failed with status: $response"
+          exit 1
+        fi
