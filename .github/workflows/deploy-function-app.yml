@@ -77,13 +77,15 @@ jobs:
         echo "Deploying infrastructure to environment: $ENVIRONMENT"
         echo "Resource Group: $RESOURCE_GROUP"
         
-        # Deploy using the built JSON (avoids potential Bicep CLI version issues)
+        # Deploy without password parameter - template should use Key Vault reference
         az deployment group create \
           --resource-group $RESOURCE_GROUP \
           --template-file infrastructure/bicep/main.json \
           --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
-          --verbose \
-          --name "main-$(date +%Y%m%d-%H%M%S)"
+          --name "main-$(date +%Y%m%d-%H%M%S)" \
+          --verbose
+        
+        echo "✅ Infrastructure deployment completed"
 
     - name: Get Function App Name from Deployment
       id: get-function-name
