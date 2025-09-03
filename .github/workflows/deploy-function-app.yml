@@ -63,14 +63,13 @@ jobs:
           --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
           --verbose
 
-    - name: Get Function App Name
+    - name: Get Function App Name (PowerShell)
       id: get-function-name
       run: |
-        FUNCTION_NAME=$(az deployment group show \
-          --resource-group $RESOURCE_GROUP \
-          --name main \
-          --query 'properties.outputs.functionAppName.value' \
-          --output tsv)
+        FUNCTION_NAME=$(pwsh -Command "
+        \$deployment = Get-AzResourceGroupDeployment -ResourceGroupName '$RESOURCE_GROUP' -Name 'main'
+        \$deployment.Outputs.functionAppName.Value
+        ")
         echo "function-name=$FUNCTION_NAME" >> $GITHUB_OUTPUT
         echo "Function App Name: $FUNCTION_NAME"
 
