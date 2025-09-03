@@ -2,109 +2,106 @@ name: Deploy Function App
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 env:
-  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-  ENVIRONMENT_NAME: dev
-  RESOURCE_GROUP_NAME: pdf-ai-agent-rg-dev
-  LOCATION: westus2
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './src/mcp-server'
 
 jobs:
-  deploy-infrastructure:
+  deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Azure Login with Service Principal
-      uses: azure/login@v1
+    # CRITICAL FIX: Pin Azure CLI to version 2.72.0 to avoid "content consumed" error
+    - name: Setup Azure CLI (Fixed Version)
+      run: |
+        # Remove existing Azure CLI
+        sudo apt-get remove -y azure-cli
+        # Install specific version 2.72.0
+        curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+        sudo apt-get install azure-cli=2.72.0-1~jammy
+        # Prevent auto-upgrade
+        sudo apt-mark hold azure-cli
+        az version
+
+    - name: Login to Azure
+      uses: azure/login@v2
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Deploy Infrastructure
-      uses: azure/arm-deploy@v1
-      with:
-        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        resourceGroupName: ${{ env.RESOURCE_GROUP_NAME }}
-        template: ./infrastructure/bicep/main.bicep
-        parameters: ./environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json
-        failOnStdErr: false
+    - name: Set environment variables
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=pdf-ai-agent-rg-prod" >> $GITHUB_ENV
+        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
+          echo "ENVIRONMENT=qa" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=pdf-ai-agent-rg-qa" >> $GITHUB_ENV
+        else
+          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
+        fi
 
-  deploy-function-app:
-    needs: deploy-infrastructure
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: Deploy Infrastructure
+      run: |
+        echo "Deploying to environment: $ENVIRONMENT"
+        echo "Resource Group: $RESOURCE_GROUP"
+        
+        # Deploy with fixed Azure CLI version
+        az deployment group create \
+          --resource-group $RESOURCE_GROUP \
+          --template-file infrastructure/bicep/main.bicep \
+          --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
+          --verbose
+
+    - name: Get Function App Name
+      id: get-function-name
+      run: |
+        FUNCTION_NAME=$(az deployment group show \
+          --resource-group $RESOURCE_GROUP \
+          --name main \
+          --query 'properties.outputs.functionAppName.value' \
+          --output tsv)
+        echo "function-name=$FUNCTION_NAME" >> $GITHUB_OUTPUT
+        echo "Function App Name: $FUNCTION_NAME"
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: './src/mcp-server/package-lock.json'
+        cache-dependency-path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package-lock.json
 
-    - name: Install dependencies
+    - name: Install dependencies and build
+      working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
       run: |
-        cd src/mcp-server
         npm ci
-
-    - name: Build TypeScript
-      run: |
-        cd src/mcp-server
         npm run build
 
-    - name: Deploy to Azure Function App
+    - name: Deploy Function App
       uses: Azure/functions-action@v1
       with:
-        app-name: 'func-pdfai-dev-tjqwgu4v'
-        slot-name: 'production'
-        package: './src/mcp-server'
+        app-name: ${{ steps.get-function-name.outputs.function-name }}
+        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
-  verify-deployment:
-    needs: deploy-function-app
-    runs-on: ubuntu-latest
-    steps:
-    - name: Wait for deployment
-      run: sleep 60
-
-    - name: Test Health Endpoint
+    - name: Verify Deployment
       run: |
-        echo "Testing health endpoint..."
-        for i in {1..5}; do
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/health)
-          echo "Attempt $i: Health endpoint returned: $response"
-          if [ $response -eq 200 ]; then
-            echo "✅ Health endpoint is working!"
-            break
-          elif [ $i -eq 5 ]; then
-            echo "❌ Health endpoint failed after 5 attempts"
-            exit 1
-          else
-            echo "Retrying in 30 seconds..."
-            sleep 30
-          fi
-        done
-
-    - name: Test Tools Endpoint
-      run: |
-        echo "Testing tools endpoint..."
-        response=$(curl -s -o /dev/null -w "%{http_code}" https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/tools)
-        echo "Tools endpoint returned: $response"
-        if [ $response -eq 200 ]; then
-          echo "✅ Tools endpoint is working!"
-        else
-          echo "❌ Tools endpoint failed with status: $response"
-          # Get actual response for debugging
-          curl -s https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api/tools || echo "Failed to get response"
-          exit 1
-        fi
+        FUNCTION_NAME="${{ steps.get-function-name.outputs.function-name }}"
+        echo "Waiting for Function App to be ready..."
+        sleep 30
+        
+        # Test health endpoint
+        curl -f "https://$FUNCTION_NAME.azurewebsites.net/api/health" || echo "Health check failed"
+        
+        # Test tools endpoint
+        curl -f "https://$FUNCTION_NAME.azurewebsites.net/api/tools" || echo "Tools endpoint failed"
