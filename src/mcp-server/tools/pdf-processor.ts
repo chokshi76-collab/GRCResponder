@@ -48,7 +48,7 @@ export interface PdfProcessingResult {
     storage_url?: string | null;
     processed_at: string;
     message: string;
-    azure_integration: 'ACTIVE' | 'FAILED';
+    azure_integration: 'ACTIVE' | 'FAILED' | 'NOT_CONFIGURED';
     next_steps?: string[];
     error_type?: string;
     error_message?: string;
@@ -72,12 +72,16 @@ export class PdfProcessor {
             
             if (endpoint && apiKey) {
                 this.client = new DocumentAnalysisClient(endpoint, new AzureKeyCredential(apiKey));
+                console.log('Azure Document Intelligence client initialized successfully');
+            } else {
+                console.log('Azure Document Intelligence credentials not found - will return configuration guidance');
             }
 
             // Initialize Azure Blob Storage client (optional)
             const storageConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
             if (storageConnectionString) {
                 this.blobService = BlobServiceClient.fromConnectionString(storageConnectionString);
+                console.log('Azure Blob Storage client initialized successfully');
             }
 
             this.isInitialized = true;
@@ -142,20 +146,21 @@ export class PdfProcessor {
     }
 
     async processPdf(parameters: PdfProcessingParameters, context: InvocationContext): Promise<PdfProcessingResult> {
-        context.log('Processing PDF with Azure Document Intelligence:', parameters);
+        context.log('PDF Processor: Starting processing with Azure Document Intelligence');
         
         try {
-            // Validate initialization
-            if (!this.isInitialized || !this.client) {
-                throw new Error('Azure Document Intelligence not properly configured. Please set AZURE_FORM_RECOGNIZER_ENDPOINT and AZURE_FORM_RECOGNIZER_KEY environment variables.');
-            }
-
-            // Validate required parameters
+            // Validate parameters
             if (!parameters.file_path) {
                 throw new Error('file_path parameter is required');
             }
 
             const analysisType = parameters.analysis_type || 'text';
+            
+            // Check if Azure Document Intelligence is configured
+            if (!this.isInitialized || !this.client) {
+                return this.returnConfigurationGuidance(parameters, analysisType);
+            }
+
             const modelId = this.getModelId(analysisType);
             const documentInput = this.prepareDocumentInput(parameters.file_path);
 
@@ -179,99 +184,7 @@ export class PdfProcessor {
                 throw new Error('Document analysis failed - no results returned');
             }
 
-            // Extract comprehensive results
-            const extractedText = result.content || '';
-            const pageCount = result.pages?.length || 0;
-            
-            // Process pages
-            const pages = result.pages?.map((page, index) => {
-                const pageLines = page.lines?.map(line => line.content).join('\n') || '';
-                
-                return {
-                    page_number: index + 1,
-                    text: pageLines,
-                    line_count: page.lines?.length || 0,
-                    word_count: pageLines.split(/\s+/).filter(word => word.length > 0).length
-                };
-            }) || [];
-
-            // Extract tables
-            const tables = result.tables?.map((table, index) => ({
-                table_number: index + 1,
-                row_count: table.rowCount || 0,
-                column_count: table.columnCount || 0,
-                cells: table.cells?.map(cell => ({
-                    content: cell.content || '',
-                    row_index: cell.rowIndex,
-                    column_index: cell.columnIndex,
-                    confidence: Math.round((cell.confidence || 0) * 100) / 100
-                })) || []
-            })) || [];
-
-            // Extract key-value pairs
-            const keyValuePairs = result.keyValuePairs?.map(kvp => ({
-                key: kvp.key?.content || '',
-                value: kvp.value?.content || '',
-                key_confidence: Math.round((kvp.key?.confidence || 0) * 100) / 100,
-                value_confidence: Math.round((kvp.value?.confidence || 0) * 100) / 100
-            })) || [];
-
-            // Calculate confidence score
-            const overallConfidence = result.pages?.reduce((sum, page) => {
-                const pageConfidence = page.lines?.reduce((lineSum, line) => 
-                    lineSum + (line.confidence || 0), 0) || 0;
-                return sum + (pageConfidence / (page.lines?.length || 1));
-            }, 0) / (result.pages?.length || 1) || 0;
-
-            // Generate document ID
-            const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-            // Store results (optional)
-            const analysisResults = {
-                documentId,
-                filePath: parameters.file_path,
-                modelId,
-                extractedText,
-                pages,
-                tables,
-                keyValuePairs,
-                confidence: Math.round(overallConfidence * 100) / 100,
-                processedAt: new Date().toISOString()
-            };
-            
-            const storageUrl = await this.storeResults(documentId, analysisResults, context);
-
-            // Return success response
-            const response: PdfProcessingResult = {
-                document_id: documentId,
-                status: 'success',
-                model_used: modelId,
-                analysis_type: analysisType,
-                file_path: parameters.file_path,
-                extracted_text: extractedText,
-                page_count: pageCount,
-                word_count: extractedText.split(/\s+/).filter(word => word.length > 0).length,
-                pages: pages,
-                tables_found: tables.length,
-                tables: tables,
-                key_value_pairs_found: keyValuePairs.length,
-                key_value_pairs: keyValuePairs,
-                confidence_score: Math.round(overallConfidence * 100) / 100,
-                storage_url: storageUrl,
-                processed_at: new Date().toISOString(),
-                message: `Successfully processed PDF using Azure Document Intelligence`,
-                azure_integration: 'ACTIVE',
-                next_steps: [
-                    'Document analysis complete',
-                    'Text extracted and structured',
-                    tables.length > 0 ? 'Tables detected and parsed' : 'No tables found',
-                    keyValuePairs.length > 0 ? 'Key-value pairs extracted' : 'No key-value pairs detected',
-                    storageUrl ? 'Results stored in Azure Blob Storage' : 'Storage not configured'
-                ]
-            };
-
-            context.log(`Successfully processed PDF: ${documentId}, Pages: ${pageCount}, Tables: ${tables.length}`);
-            return response;
+            return await this.processAnalysisResults(result, parameters, analysisType, modelId, context);
 
         } catch (error) {
             context.error('Error in PDF processing module:', error);
@@ -295,6 +208,129 @@ export class PdfProcessor {
                 ]
             };
         }
+    }
+
+    private returnConfigurationGuidance(parameters: PdfProcessingParameters, analysisType: string): PdfProcessingResult {
+        return {
+            document_id: `config_guidance_${Date.now()}`,
+            status: 'error',
+            analysis_type: analysisType,
+            file_path: parameters.file_path,
+            processed_at: new Date().toISOString(),
+            message: 'Azure Document Intelligence not configured - returning setup guidance',
+            azure_integration: 'NOT_CONFIGURED',
+            error_type: 'Configuration Required',
+            error_message: 'Azure Document Intelligence credentials not found',
+            troubleshooting: [
+                'Set AZURE_FORM_RECOGNIZER_ENDPOINT environment variable',
+                'Set AZURE_FORM_RECOGNIZER_KEY environment variable',
+                'Example: AZURE_FORM_RECOGNIZER_ENDPOINT=https://your-doc-intel.cognitiveservices.azure.com/',
+                'Get your key from Azure Portal > Document Intelligence resource',
+                'Optional: Set AZURE_STORAGE_CONNECTION_STRING for result persistence'
+            ],
+            next_steps: [
+                '1. Configure Azure Document Intelligence environment variables',
+                '2. Restart the Function App',
+                '3. Test with a sample PDF URL',
+                '4. Real AI-powered document processing will be available'
+            ]
+        };
+    }
+
+    private async processAnalysisResults(result: any, parameters: PdfProcessingParameters, analysisType: string, modelId: string, context: InvocationContext): Promise<PdfProcessingResult> {
+        // Extract comprehensive results
+        const extractedText = result.content || '';
+        const pageCount = result.pages?.length || 0;
+        
+        // Process pages
+        const pages = result.pages?.map((page: any, index: number) => {
+            const pageLines = page.lines?.map((line: any) => line.content).join('\n') || '';
+            
+            return {
+                page_number: index + 1,
+                text: pageLines,
+                line_count: page.lines?.length || 0,
+                word_count: pageLines.split(/\s+/).filter(word => word.length > 0).length
+            };
+        }) || [];
+
+        // Extract tables
+        const tables = result.tables?.map((table: any, index: number) => ({
+            table_number: index + 1,
+            row_count: table.rowCount || 0,
+            column_count: table.columnCount || 0,
+            cells: table.cells?.map((cell: any) => ({
+                content: cell.content || '',
+                row_index: cell.rowIndex,
+                column_index: cell.columnIndex,
+                confidence: Math.round((cell.confidence || 0) * 100) / 100
+            })) || []
+        })) || [];
+
+        // Extract key-value pairs
+        const keyValuePairs = result.keyValuePairs?.map((kvp: any) => ({
+            key: kvp.key?.content || '',
+            value: kvp.value?.content || '',
+            key_confidence: Math.round((kvp.key?.confidence || 0) * 100) / 100,
+            value_confidence: Math.round((kvp.value?.confidence || 0) * 100) / 100
+        })) || [];
+
+        // Calculate confidence score
+        const overallConfidence = result.pages?.reduce((sum: number, page: any) => {
+            const pageConfidence = page.lines?.reduce((lineSum: number, line: any) => 
+                lineSum + (line.confidence || 0), 0) || 0;
+            return sum + (pageConfidence / (page.lines?.length || 1));
+        }, 0) / (result.pages?.length || 1) || 0;
+
+        // Generate document ID
+        const documentId = `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Store results (optional)
+        const analysisResults = {
+            documentId,
+            filePath: parameters.file_path,
+            modelId,
+            extractedText,
+            pages,
+            tables,
+            keyValuePairs,
+            confidence: Math.round(overallConfidence * 100) / 100,
+            processedAt: new Date().toISOString()
+        };
+        
+        const storageUrl = await this.storeResults(documentId, analysisResults, context);
+
+        // Return success response
+        const response: PdfProcessingResult = {
+            document_id: documentId,
+            status: 'success',
+            model_used: modelId,
+            analysis_type: analysisType,
+            file_path: parameters.file_path,
+            extracted_text: extractedText,
+            page_count: pageCount,
+            word_count: extractedText.split(/\s+/).filter(word => word.length > 0).length,
+            pages: pages,
+            tables_found: tables.length,
+            tables: tables,
+            key_value_pairs_found: keyValuePairs.length,
+            key_value_pairs: keyValuePairs,
+            confidence_score: Math.round(overallConfidence * 100) / 100,
+            storage_url: storageUrl,
+            processed_at: new Date().toISOString(),
+            message: `Successfully processed PDF using Azure Document Intelligence with ${modelId} model`,
+            azure_integration: 'ACTIVE',
+            next_steps: [
+                'Document analysis complete',
+                'Text extracted and structured',
+                tables.length > 0 ? `${tables.length} tables detected and parsed` : 'No tables found',
+                keyValuePairs.length > 0 ? `${keyValuePairs.length} key-value pairs extracted` : 'No key-value pairs detected',
+                storageUrl ? 'Results stored in Azure Blob Storage' : 'Storage not configured'
+            ]
+        };
+
+        context.log(`Successfully processed PDF: ${documentId}, Pages: ${pageCount}, Tables: ${tables.length}, Confidence: ${response.confidence_score}`);
+        return response;
     }
 }
 

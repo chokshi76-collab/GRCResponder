@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
-// TEMPORARY: Remove the modular import until we create the pdf-processor module
-// import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
+// Import modular PDF processor
+import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
 
 // Define the tools that our Universal AI API supports
 const AVAILABLE_TOOLS = [
@@ -149,7 +149,9 @@ app.http('health', {
                 status: 'healthy',
                 timestamp: new Date().toISOString(),
                 version: '1.0.0',
-                service: 'PDF AI Agent Universal API'
+                service: 'PDF AI Agent Universal API',
+                modular_architecture: 'ACTIVE',
+                pdf_processor: 'Azure Document Intelligence Module'
             })
         };
     }
@@ -168,7 +170,7 @@ app.http('docs', {
             info: {
                 title: 'PDF AI Agent Universal API',
                 version: '1.0.0',
-                description: 'Universal REST API for AI-powered document processing and analysis tools'
+                description: 'Universal REST API for AI-powered document processing and analysis tools with modular architecture'
             },
             servers: [
                 {
@@ -215,6 +217,24 @@ app.http('docs', {
                         }
                     }
                 }
+            },
+            components: {
+                schemas: {
+                    PdfProcessingRequest: {
+                        type: 'object',
+                        properties: {
+                            file_path: {
+                                type: 'string',
+                                description: 'URL or base64 data of PDF to process'
+                            },
+                            analysis_type: {
+                                type: 'string',
+                                enum: ['text', 'tables', 'layout', 'comprehensive']
+                            }
+                        },
+                        required: ['file_path']
+                    }
+                }
             }
         };
 
@@ -245,6 +265,9 @@ app.http('tools', {
                 tools: AVAILABLE_TOOLS,
                 count: AVAILABLE_TOOLS.length,
                 service: 'PDF AI Agent Universal API',
+                architecture: 'Modular Design',
+                pdf_processing: 'Azure Document Intelligence (Real AI)',
+                other_tools: 'Placeholder (to be modularized)',
                 timestamp: new Date().toISOString()
             })
         };
@@ -301,8 +324,9 @@ app.http('execute-tool', {
         try {
             switch (toolName) {
                 case 'process_pdf':
-                    // TEMPORARY: Use placeholder until we implement modular version
-                    result = await processPdf(parameters, context);
+                    // Use modular PDF processor with real Azure Document Intelligence
+                    context.log('Using modular PDF processor with Azure Document Intelligence');
+                    result = await pdfProcessor.processPdf(parameters as PdfProcessingParameters, context);
                     break;
                 case 'analyze_csv':
                     result = await analyzeCsv(parameters, context);
@@ -329,7 +353,8 @@ app.http('execute-tool', {
                     tool: toolName,
                     result: result,
                     timestamp: new Date().toISOString(),
-                    status: 'success'
+                    status: 'success',
+                    architecture: toolName === 'process_pdf' ? 'modular_azure_ai' : 'placeholder'
                 })
             };
 
@@ -351,23 +376,7 @@ app.http('execute-tool', {
     }
 });
 
-// TEMPORARY: Keep placeholder implementations until we create modular versions
-async function processPdf(parameters: any, context: InvocationContext) {
-    context.log('Processing PDF with parameters:', parameters);
-    
-    return {
-        message: 'PDF processing completed (placeholder - will be replaced with modular implementation)',
-        file_path: parameters.file_path || 'unknown',
-        analysis_type: parameters.analysis_type || 'text',
-        extracted_text: 'Sample extracted text from PDF...',
-        pages: 5,
-        tables_found: 2,
-        confidence: 0.95,
-        status: 'placeholder_mode',
-        next_steps: 'Create modular PDF processor with Azure Document Intelligence SDK integration'
-    };
-}
-
+// Placeholder tool implementations (remaining tools to be modularized in future steps)
 async function analyzeCsv(parameters: any, context: InvocationContext) {
     context.log('Analyzing CSV with parameters:', parameters);
     
@@ -379,7 +388,8 @@ async function analyzeCsv(parameters: any, context: InvocationContext) {
         columns_analyzed: 15,
         data_quality_score: 0.87,
         anomalies_detected: 3,
-        next_steps: 'Replace with SQL database integration'
+        status: 'placeholder_mode',
+        next_steps: 'Replace with modular SQL database integration'
     };
 }
 
@@ -393,7 +403,8 @@ async function scrapeWebsite(parameters: any, context: InvocationContext) {
         elements_found: parameters.selectors?.length || 0,
         screenshot_taken: parameters.screenshot || false,
         timestamp: new Date().toISOString(),
-        next_steps: 'Replace with Puppeteer implementation'
+        status: 'placeholder_mode',
+        next_steps: 'Replace with modular Puppeteer implementation'
     };
 }
 
@@ -410,7 +421,8 @@ async function searchDocuments(parameters: any, context: InvocationContext) {
             { id: '1', title: 'Sample Document 1', score: 0.95 },
             { id: '2', title: 'Sample Document 2', score: 0.87 }
         ],
-        next_steps: 'Replace with Azure AI Search SDK integration'
+        status: 'placeholder_mode',
+        next_steps: 'Replace with modular Azure AI Search SDK integration'
     };
 }
 
@@ -427,6 +439,7 @@ async function queryCsvData(parameters: any, context: InvocationContext) {
             { column1: 'value1', column2: 'value2' },
             { column1: 'value3', column2: 'value4' }
         ],
-        next_steps: 'Replace with SQL database query implementation'
+        status: 'placeholder_mode',
+        next_steps: 'Replace with modular SQL database query implementation'
     };
 }
