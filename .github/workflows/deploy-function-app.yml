@@ -63,8 +63,11 @@ jobs:
     - name: Azure Login and Deploy Infrastructure (PowerShell)
       run: |
         pwsh -Command "
-        # Parse Azure credentials
-        \$creds = '${{ secrets.AZURE_CREDENTIALS }}' | ConvertFrom-Json
+        # Parse Azure credentials properly with escaping
+        \$credsJson = @'
+        ${{ secrets.AZURE_CREDENTIALS }}
+        '@
+        \$creds = \$credsJson | ConvertFrom-Json
         \$securePassword = ConvertTo-SecureString \$creds.clientSecret -AsPlainText -Force
         \$credential = New-Object System.Management.Automation.PSCredential(\$creds.clientId, \$securePassword)
         
