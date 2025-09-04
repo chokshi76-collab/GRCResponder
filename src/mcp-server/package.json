@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "pdf-ai-agent-mcp",
   "version": "1.0.0",
   "description": "PDF AI Agent MCP Server with Azure backend for PDF processing, CSV analysis, and web scraping",
