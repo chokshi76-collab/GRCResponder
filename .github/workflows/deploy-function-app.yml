@@ -23,8 +23,6 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18.x'
-        cache: 'npm'
-        cache-dependency-path: src/mcp-server/package-lock.json
 
     - name: npm clean install and build
       run: |
