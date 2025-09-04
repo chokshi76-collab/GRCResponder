@@ -23,6 +23,7 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18.x'
+        # Remove cache and cache-dependency-path to avoid caching issues
 
     - name: npm clean install and build
       run: |
