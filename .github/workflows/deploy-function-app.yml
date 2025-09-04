@@ -1,127 +1,63 @@
-name: Deploy Function App (PowerShell Solution)
+name: Deploy Function App
 
 on:
   push:
-    branches: [ main, dev ]
-  pull_request:
     branches: [ main ]
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: './src/mcp-server'
+  AZURE_FUNCTIONAPP_NAME: func-pdfai-dev-tjqwgu4v
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: src/mcp-server
+  RESOURCE_GROUP: pdf-ai-agent-rg-dev
+  AZURE_SUBSCRIPTION_ID: d4d5edc0-d0d0-491c-8d55-4bf5481b5b49
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set environment variables
-      run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "ENVIRONMENT=qa" >> $GITHUB_ENV
-          echo "RESOURCE_GROUP=pdf-ai-agent-rg-qa" >> $GITHUB_ENV
-        elif [[ "${{ github.ref }}" == "refs/heads/dev" ]]; then
-          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-          echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
-        else
-          echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-          echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
-        fi
-
-    - name: Setup PowerShell and Az Module
-      run: |
-        # Install PowerShell
-        sudo apt-get update
-        sudo apt-get install -y wget apt-transport-https software-properties-common
-        wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
-        sudo dpkg -i packages-microsoft-prod.deb
-        sudo apt-get update
-        sudo apt-get install -y powershell
-        
-        # Install Az PowerShell module
-        pwsh -Command "Install-Module -Name Az -Repository PSGallery -Force -AllowClobber -Scope CurrentUser"
-
-    - name: Install Bicep CLI
-      run: |
-        curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
-        chmod +x ./bicep
-        sudo mv ./bicep /usr/local/bin/bicep
-        bicep --version
-
-    - name: Build Bicep Template
-      run: |
-        echo "Building Bicep template..."
-        bicep build infrastructure/bicep/main.bicep --outfile infrastructure/bicep/main.json
-        echo "Bicep template compilation completed"
-
-    - name: Azure Login and Deploy Infrastructure (PowerShell)
-      run: |
-        pwsh -Command "
-        # Parse Azure credentials properly with escaping
-        \$credsJson = @'
-        ${{ secrets.AZURE_CREDENTIALS }}
-        '@
-        \$creds = \$credsJson | ConvertFrom-Json
-        \$securePassword = ConvertTo-SecureString \$creds.clientSecret -AsPlainText -Force
-        \$credential = New-Object System.Management.Automation.PSCredential(\$creds.clientId, \$securePassword)
-        
-        # Connect to Azure
-        Connect-AzAccount -ServicePrincipal -Credential \$credential -TenantId \$creds.tenantId -SubscriptionId \$creds.subscriptionId
-        
-        # Create resource group
-        New-AzResourceGroup -Name '$RESOURCE_GROUP' -Location 'West US 2' -Force
-        
-        # Deploy infrastructure using PowerShell (avoids Azure CLI bug)
-        \$result = New-AzResourceGroupDeployment \
-          -ResourceGroupName '$RESOURCE_GROUP' \
-          -TemplateFile 'infrastructure/bicep/main.json' \
-          -TemplateParameterFile 'environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json' \
-          -Verbose
-        
-        # Get Function App name from outputs
-        \$functionAppName = \$result.Outputs.functionAppName.Value
-        Write-Output \"FUNCTION_APP_NAME=\$functionAppName\" | Out-File -FilePath \$env:GITHUB_ENV -Append
-        Write-Host \"Function App Name: \$functionAppName\"
-        "
+      uses: actions/checkout@v3
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
-        node-version: '18'
+        node-version: '18.x'
         cache: 'npm'
-        cache-dependency-path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/package-lock.json
+        cache-dependency-path: src/mcp-server/package-lock.json
 
-    - name: Install dependencies and build
-      working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+    - name: npm install and build
       run: |
-        npm ci
+        cd src/mcp-server
+        npm install
         npm run build
 
-    - name: Deploy Function App Code
+    - name: 'Deploy app to Azure Functions'
       uses: Azure/functions-action@v1
       with:
-        app-name: ${{ env.FUNCTION_APP_NAME }}
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
-    - name: Verify Universal AI Platform Deployment
+    - name: Login to Azure with Service Principal
+      shell: pwsh
       run: |
-        echo "Waiting for Function App to be ready..."
-        sleep 30
-        
-        BASE_URL="https://$FUNCTION_APP_NAME.azurewebsites.net/api"
-        
-        echo "1. Health Check:"
-        curl -s "$BASE_URL/health" || echo "Health check failed"
-        
-        echo "2. Available AI Tools:"
-        curl -s "$BASE_URL/tools" || echo "Tools list failed"
-        
-        echo "Infrastructure as Code deployment complete!"
-        echo "Universal AI Platform: $BASE_URL"
+        $jsonCredentials = '${{ secrets.AZURE_CREDENTIALS }}' | ConvertFrom-Json
+        $servicePrincipalId = $jsonCredentials.clientId
+        $servicePrincipalKey = $jsonCredentials.clientSecret
+        $tenantId = $jsonCredentials.tenantId
+
+        $securePassword = ConvertTo-SecureString $servicePrincipalKey -AsPlainText -Force
+        $credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $servicePrincipalId, $securePassword
+
+        Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $tenantId
+        Set-AzContext -Subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Deploy Bicep infrastructure
+      shell: pwsh
+      run: |
+        New-AzResourceGroupDeployment `
+          -ResourceGroupName ${{ env.RESOURCE_GROUP }} `
+          -TemplateFile "infrastructure/bicep/main.bicep" `
+          -TemplateParameterFile "environments/dev/parameters.dev.json" `
+          -Verbose
