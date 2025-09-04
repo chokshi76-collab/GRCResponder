@@ -1,8 +1,8 @@
 // src/mcp-server/src/tools/pdf-processor.ts
-// Modular Azure Document Intelligence PDF Processing
+// Fixed version addressing all TypeScript compilation errors
 
 import { InvocationContext } from "@azure/functions";
-import { DocumentAnalysisClient, AzureKeyCredential } from "@azure/ai-form-recognizer";
+import { DocumentAnalysisClient, AzureKeyCredential, AnalyzeResult } from "@azure/ai-form-recognizer";
 import { BlobServiceClient } from "@azure/storage-blob";
 
 export interface PdfProcessingParameters {
@@ -106,12 +106,13 @@ export class PdfProcessor {
         }
     }
 
-    private prepareDocumentInput(filePath: string): string | Buffer {
+    private prepareDocumentInput(filePath: string): string | Uint8Array {
         if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath;
         } else if (filePath.startsWith('data:')) {
             const base64Data = filePath.split(',')[1];
-            return Buffer.from(base64Data, 'base64');
+            const buffer = Buffer.from(base64Data, 'base64');
+            return new Uint8Array(buffer);
         } else {
             throw new Error('File path must be a URL or base64 data. For blob storage integration, please provide the full blob URL.');
         }
@@ -127,9 +128,10 @@ export class PdfProcessor {
             await containerClient.createIfNotExists();
             
             const blobClient = containerClient.getBlockBlobClient(`${documentId}_analysis.json`);
+            const jsonContent = JSON.stringify(analysisResults, null, 2);
             await blobClient.upload(
-                JSON.stringify(analysisResults, null, 2), 
-                JSON.stringify(analysisResults).length,
+                jsonContent, 
+                jsonContent.length,
                 {
                     blobHTTPHeaders: {
                         blobContentType: 'application/json'
@@ -166,19 +168,14 @@ export class PdfProcessor {
 
             context.log(`Starting document analysis with model: ${modelId} for file: ${parameters.file_path}`);
 
-            // Start document analysis
+            // Start document analysis with corrected API call
             const poller = await this.client.beginAnalyzeDocument(
-                modelId as any,
-                documentInput,
-                {
-                    onProgress: (state) => {
-                        context.log(`Analysis progress: ${state.status}`);
-                    }
-                }
+                modelId,
+                documentInput
             );
 
             // Wait for analysis to complete
-            const result = await poller.pollUntilDone();
+            const result: AnalyzeResult = await poller.pollUntilDone();
             
             if (!result) {
                 throw new Error('Document analysis failed - no results returned');
@@ -237,47 +234,53 @@ export class PdfProcessor {
         };
     }
 
-    private async processAnalysisResults(result: any, parameters: PdfProcessingParameters, analysisType: string, modelId: string, context: InvocationContext): Promise<PdfProcessingResult> {
+    private async processAnalysisResults(
+        result: AnalyzeResult, 
+        parameters: PdfProcessingParameters, 
+        analysisType: string, 
+        modelId: string, 
+        context: InvocationContext
+    ): Promise<PdfProcessingResult> {
         // Extract comprehensive results
         const extractedText = result.content || '';
         const pageCount = result.pages?.length || 0;
         
-        // Process pages
-        const pages = result.pages?.map((page: any, index: number) => {
-            const pageLines = page.lines?.map((line: any) => line.content).join('\n') || '';
+        // Process pages with explicit type annotation
+        const pages = result.pages?.map((page, index) => {
+            const pageLines = page.lines?.map((line) => line.content).join('\n') || '';
             
             return {
                 page_number: index + 1,
                 text: pageLines,
                 line_count: page.lines?.length || 0,
-                word_count: pageLines.split(/\s+/).filter(word => word.length > 0).length
+                word_count: pageLines.split(/\s+/).filter((word: string) => word.length > 0).length
             };
         }) || [];
 
-        // Extract tables
-        const tables = result.tables?.map((table: any, index: number) => ({
+        // Extract tables with proper typing
+        const tables = result.tables?.map((table, index) => ({
             table_number: index + 1,
             row_count: table.rowCount || 0,
             column_count: table.columnCount || 0,
-            cells: table.cells?.map((cell: any) => ({
+            cells: table.cells?.map((cell) => ({
                 content: cell.content || '',
-                row_index: cell.rowIndex,
-                column_index: cell.columnIndex,
+                row_index: cell.rowIndex || 0,
+                column_index: cell.columnIndex || 0,
                 confidence: Math.round((cell.confidence || 0) * 100) / 100
             })) || []
         })) || [];
 
-        // Extract key-value pairs
-        const keyValuePairs = result.keyValuePairs?.map((kvp: any) => ({
+        // Extract key-value pairs with proper typing
+        const keyValuePairs = result.keyValuePairs?.map((kvp) => ({
             key: kvp.key?.content || '',
             value: kvp.value?.content || '',
             key_confidence: Math.round((kvp.key?.confidence || 0) * 100) / 100,
             value_confidence: Math.round((kvp.value?.confidence || 0) * 100) / 100
         })) || [];
 
-        // Calculate confidence score
-        const overallConfidence = result.pages?.reduce((sum: number, page: any) => {
-            const pageConfidence = page.lines?.reduce((lineSum: number, line: any) => 
+        // Calculate confidence score with proper typing
+        const overallConfidence = result.pages?.reduce((sum, page) => {
+            const pageConfidence = page.lines?.reduce((lineSum, line) => 
                 lineSum + (line.confidence || 0), 0) || 0;
             return sum + (pageConfidence / (page.lines?.length || 1));
         }, 0) / (result.pages?.length || 1) || 0;
@@ -300,7 +303,7 @@ export class PdfProcessor {
         
         const storageUrl = await this.storeResults(documentId, analysisResults, context);
 
-        // Return success response
+        // Return success response with explicit type annotation for word filtering
         const response: PdfProcessingResult = {
             document_id: documentId,
             status: 'success',
@@ -309,7 +312,7 @@ export class PdfProcessor {
             file_path: parameters.file_path,
             extracted_text: extractedText,
             page_count: pageCount,
-            word_count: extractedText.split(/\s+/).filter(word => word.length > 0).length,
+            word_count: extractedText.split(/\s+/).filter((word: string) => word.length > 0).length,
             pages: pages,
             tables_found: tables.length,
             tables: tables,
