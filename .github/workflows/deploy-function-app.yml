@@ -22,9 +22,8 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18.x'
-        cache: 'npm'
-        cache-dependency-path: src/mcp-server/package-lock.json
+         node-version: '18.x'
+         # Remove cache and cache-dependency-path to avoid caching issues
 
     - name: npm install and build
       run: |
