@@ -1,7 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
-// Import modular PDF processor
-import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
+// TEMPORARY: Remove the modular import until we create the pdf-processor module
+// import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
 
 // Define the tools that our Universal AI API supports
 const AVAILABLE_TOOLS = [
@@ -301,8 +301,8 @@ app.http('execute-tool', {
         try {
             switch (toolName) {
                 case 'process_pdf':
-                    // Use modular PDF processor
-                    result = await pdfProcessor.processPdf(parameters as PdfProcessingParameters, context);
+                    // TEMPORARY: Use placeholder until we implement modular version
+                    result = await processPdf(parameters, context);
                     break;
                 case 'analyze_csv':
                     result = await analyzeCsv(parameters, context);
@@ -351,7 +351,23 @@ app.http('execute-tool', {
     }
 });
 
-// Placeholder tool implementations (remaining tools to be modularized in future steps)
+// TEMPORARY: Keep placeholder implementations until we create modular versions
+async function processPdf(parameters: any, context: InvocationContext) {
+    context.log('Processing PDF with parameters:', parameters);
+    
+    return {
+        message: 'PDF processing completed (placeholder - will be replaced with modular implementation)',
+        file_path: parameters.file_path || 'unknown',
+        analysis_type: parameters.analysis_type || 'text',
+        extracted_text: 'Sample extracted text from PDF...',
+        pages: 5,
+        tables_found: 2,
+        confidence: 0.95,
+        status: 'placeholder_mode',
+        next_steps: 'Create modular PDF processor with Azure Document Intelligence SDK integration'
+    };
+}
+
 async function analyzeCsv(parameters: any, context: InvocationContext) {
     context.log('Analyzing CSV with parameters:', parameters);
     
