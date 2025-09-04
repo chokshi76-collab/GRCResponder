@@ -38,19 +38,30 @@ jobs:
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
-    - name: Login to Azure with Service Principal
+    - name: Install Az PowerShell Module
       shell: pwsh
       run: |
-        $jsonCredentials = '${{ secrets.AZURE_CREDENTIALS }}' | ConvertFrom-Json
-        $servicePrincipalId = $jsonCredentials.clientId
-        $servicePrincipalKey = $jsonCredentials.clientSecret
-        $tenantId = $jsonCredentials.tenantId
+        # Install Az module if not already present
+        if (-not (Get-Module -ListAvailable -Name Az)) {
+          Install-Module -Name Az -AllowClobber -Force -Scope CurrentUser
+        }
+    
+        # Import the module
+        Import-Module Az
 
-        $securePassword = ConvertTo-SecureString $servicePrincipalKey -AsPlainText -Force
-        $credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $servicePrincipalId, $securePassword
+    - name: Login to Azure with Service Principal
+     shell: pwsh
+     run: |
+       $jsonCredentials = '${{ secrets.AZURE_CREDENTIALS }}' | ConvertFrom-Json
+       $servicePrincipalId = $jsonCredentials.clientId
+       $servicePrincipalKey = $jsonCredentials.clientSecret
+       $tenantId = $jsonCredentials.tenantId
 
-        Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $tenantId
-        Set-AzContext -Subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+       $securePassword = ConvertTo-SecureString $servicePrincipalKey -AsPlainText -Force
+       $credential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $servicePrincipalId, $securePassword
+
+       Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $tenantId
+       Set-AzContext -Subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Deploy Bicep infrastructure
       shell: pwsh
