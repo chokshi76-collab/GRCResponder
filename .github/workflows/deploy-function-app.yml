@@ -23,12 +23,20 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18.x'
+        cache: 'npm'
+        cache-dependency-path: src/mcp-server/package-lock.json
 
-    - name: npm install and build
+    - name: npm clean install and build
       run: |
         cd src/mcp-server
-        npm install
+        echo "Cleaning npm cache and node_modules..."
+        npm cache clean --force
+        rm -rf node_modules package-lock.json
+        echo "Installing dependencies with clean slate..."
+        npm install --legacy-peer-deps
+        echo "Building project..."
         npm run build
+        echo "Build completed successfully!"
 
     - name: 'Deploy app to Azure Functions'
       uses: Azure/functions-action@v1
