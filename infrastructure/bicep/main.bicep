@@ -7,6 +7,8 @@ param location string = resourceGroup().location
 @description('User Object ID for Key Vault access')
 param userObjectId string
 
+@description('Object ID for Key Vault access policy')
+param keyVaultAccessObjectId string
 
 // Generate unique names with environment suffix
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
@@ -51,7 +53,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     accessPolicies: [
       {
         tenantId: tenant().tenantId
-        objectId: userObjectId
+        objectId: keyVaultAccessObjectId
         permissions: {
           keys: ['all']
           secrets: ['all']
