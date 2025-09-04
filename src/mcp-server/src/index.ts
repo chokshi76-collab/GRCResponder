@@ -1,5 +1,8 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
+// Import modular PDF processor
+import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
+
 // Define the tools that our Universal AI API supports
 const AVAILABLE_TOOLS = [
     {
@@ -10,7 +13,7 @@ const AVAILABLE_TOOLS = [
             properties: {
                 file_path: {
                     type: "string",
-                    description: "Path to the PDF file to process"
+                    description: "Path to the PDF file to process (URL or base64 data)"
                 },
                 analysis_type: {
                     type: "string",
@@ -293,12 +296,13 @@ app.http('execute-tool', {
             };
         }
 
-        // Execute the tool (placeholder implementations for now)
+        // Execute the tool
         let result;
         try {
             switch (toolName) {
                 case 'process_pdf':
-                    result = await processPdf(parameters, context);
+                    // Use modular PDF processor
+                    result = await pdfProcessor.processPdf(parameters as PdfProcessingParameters, context);
                     break;
                 case 'analyze_csv':
                     result = await analyzeCsv(parameters, context);
@@ -347,22 +351,7 @@ app.http('execute-tool', {
     }
 });
 
-// Placeholder tool implementations (to be replaced with real Azure SDK integrations)
-async function processPdf(parameters: any, context: InvocationContext) {
-    context.log('Processing PDF with parameters:', parameters);
-    
-    return {
-        message: 'PDF processing completed (placeholder)',
-        file_path: parameters.file_path || 'unknown',
-        analysis_type: parameters.analysis_type || 'text',
-        extracted_text: 'Sample extracted text from PDF...',
-        pages: 5,
-        tables_found: 2,
-        confidence: 0.95,
-        next_steps: 'Replace with Azure Document Intelligence SDK integration'
-    };
-}
-
+// Placeholder tool implementations (remaining tools to be modularized in future steps)
 async function analyzeCsv(parameters: any, context: InvocationContext) {
     context.log('Analyzing CSV with parameters:', parameters);
     
