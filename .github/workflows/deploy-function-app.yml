@@ -27,9 +27,11 @@ jobs:
 
     - name: npm clean install and build
       run: |
-        cd src/mcp-server
-        npm ci --legacy-peer-deps
-        npm run build
+      cd src/mcp-server
+      npm cache clean --force
+      rm -rf node_modules package-lock.json
+      npm install --legacy-peer-deps
+      npm run build
 
     - name: 'Deploy app to Azure Functions'
       uses: Azure/functions-action@v1
