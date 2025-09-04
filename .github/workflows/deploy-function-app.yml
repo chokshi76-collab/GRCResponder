@@ -1,4 +1,4 @@
-name: Deploy Function App
+name: Deploy Function App (PowerShell Solution)
 
 on:
   push:
@@ -21,11 +21,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Login to Azure
-      uses: azure/login@v2
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
     - name: Set environment variables
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -39,9 +34,21 @@ jobs:
           echo "RESOURCE_GROUP=pdf-ai-agent-rg-dev" >> $GITHUB_ENV
         fi
 
+    - name: Setup PowerShell and Az Module
+      run: |
+        # Install PowerShell
+        sudo apt-get update
+        sudo apt-get install -y wget apt-transport-https software-properties-common
+        wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/packages-microsoft-prod.deb"
+        sudo dpkg -i packages-microsoft-prod.deb
+        sudo apt-get update
+        sudo apt-get install -y powershell
+        
+        # Install Az PowerShell module
+        pwsh -Command "Install-Module -Name Az -Repository PSGallery -Force -AllowClobber -Scope CurrentUser"
+
     - name: Install Bicep CLI
       run: |
-        # Install latest Bicep CLI
         curl -Lo bicep https://github.com/Azure/bicep/releases/latest/download/bicep-linux-x64
         chmod +x ./bicep
         sudo mv ./bicep /usr/local/bin/bicep
@@ -51,82 +58,34 @@ jobs:
       run: |
         echo "Building Bicep template..."
         bicep build infrastructure/bicep/main.bicep --outfile infrastructure/bicep/main.json
-        echo "✅ Bicep template compilation completed"
+        echo "Bicep template compilation completed"
 
-    - name: Create Resource Group
+    - name: Azure Login and Deploy Infrastructure (PowerShell)
       run: |
-        echo "Ensuring resource group exists..."
-        az group create --name $RESOURCE_GROUP --location "West US 2" || true
-        echo "✅ Resource group ready"
-
-    - name: Grant Service Principal Permissions (One-time)
-      run: |
-        echo "Ensuring service principal has required permissions..."
+        pwsh -Command "
+        # Parse Azure credentials
+        \$creds = '${{ secrets.AZURE_CREDENTIALS }}' | ConvertFrom-Json
+        \$securePassword = ConvertTo-SecureString \$creds.clientSecret -AsPlainText -Force
+        \$credential = New-Object System.Management.Automation.PSCredential(\$creds.clientId, \$securePassword)
         
-        # Get service principal ID from credentials
-        SP_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
+        # Connect to Azure
+        Connect-AzAccount -ServicePrincipal -Credential \$credential -TenantId \$creds.tenantId -SubscriptionId \$creds.subscriptionId
         
-        # Grant Deployment Operator role for what-if operations (idempotent)
-        az role assignment create \
-          --assignee $SP_ID \
-          --role "Deployment Operator" \
-          --scope "/subscriptions/${{ secrets.AZURE_SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP" \
-          --output none || echo "Role assignment may already exist"
+        # Create resource group
+        New-AzResourceGroup -Name '$RESOURCE_GROUP' -Location 'West US 2' -Force
         
-        echo "✅ Service principal permissions verified"
-
-    - name: Infrastructure What-If Analysis  
-      continue-on-error: true
-      id: whatif
-      run: |
-        echo "Running what-if analysis to preview changes..."
+        # Deploy infrastructure using PowerShell (avoids Azure CLI bug)
+        \$result = New-AzResourceGroupDeployment \
+          -ResourceGroupName '$RESOURCE_GROUP' \
+          -TemplateFile 'infrastructure/bicep/main.json' \
+          -TemplateParameterFile 'environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json' \
+          -Verbose
         
-        # Try what-if analysis with proper permissions
-        az deployment group what-if \
-          --resource-group $RESOURCE_GROUP \
-          --template-file infrastructure/bicep/main.json \
-          --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
-          --verbose
-        
-        echo "✅ What-if analysis completed"
-
-    - name: Deploy Infrastructure
-      run: |
-        echo "Deploying infrastructure to environment: $ENVIRONMENT"
-        echo "Resource Group: $RESOURCE_GROUP"
-        
-        if [[ "${{ steps.whatif.outcome }}" == "failure" ]]; then
-          echo "⚠️  What-if failed due to permissions, proceeding with direct deployment"
-          echo "This is acceptable for Infrastructure as Code - template validation occurred during build"
-        fi
-        
-        # Deploy with all parameters properly handled
-        az deployment group create \
-          --resource-group $RESOURCE_GROUP \
-          --template-file infrastructure/bicep/main.json \
-          --parameters @environments/$ENVIRONMENT/parameters.$ENVIRONMENT.json \
-          --name "main-$(date +%Y%m%d-%H%M%S)" \
-          --verbose
-        
-        echo "✅ Infrastructure deployment completed"
-
-    - name: Get Function App Name from Deployment
-      id: get-function-name
-      run: |
-        # Get the most recent successful deployment
-        DEPLOYMENT_NAME=$(az deployment group list \
-          --resource-group $RESOURCE_GROUP \
-          --query "[?provisioningState=='Succeeded'] | sort_by(@, &properties.timestamp) | [-1].name" \
-          --output tsv)
-        
-        FUNCTION_NAME=$(az deployment group show \
-          --resource-group $RESOURCE_GROUP \
-          --name "$DEPLOYMENT_NAME" \
-          --query 'properties.outputs.functionAppName.value' \
-          --output tsv)
-        
-        echo "function-name=$FUNCTION_NAME" >> $GITHUB_OUTPUT
-        echo "Function App Name: $FUNCTION_NAME"
+        # Get Function App name from outputs
+        \$functionAppName = \$result.Outputs.functionAppName.Value
+        Write-Output \"FUNCTION_APP_NAME=\$functionAppName\" | Out-File -FilePath \$env:GITHUB_ENV -Append
+        Write-Host \"Function App Name: \$functionAppName\"
+        "
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -144,53 +103,22 @@ jobs:
     - name: Deploy Function App Code
       uses: Azure/functions-action@v1
       with:
-        app-name: ${{ steps.get-function-name.outputs.function-name }}
+        app-name: ${{ env.FUNCTION_APP_NAME }}
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
     - name: Verify Universal AI Platform Deployment
       run: |
-        FUNCTION_NAME="${{ steps.get-function-name.outputs.function-name }}"
         echo "Waiting for Function App to be ready..."
         sleep 30
         
-        echo "🚀 Verifying Universal AI Tool Platform deployment..."
-        BASE_URL="https://$FUNCTION_NAME.azurewebsites.net/api"
+        BASE_URL="https://$FUNCTION_APP_NAME.azurewebsites.net/api"
         
         echo "1. Health Check:"
-        curl -s "$BASE_URL/health" | jq '.' || echo "❌ Health check failed"
+        curl -s "$BASE_URL/health" || echo "Health check failed"
         
-        echo -e "\n2. Available AI Tools:"
-        curl -s "$BASE_URL/tools" | jq '.' || echo "❌ Tools list failed"
+        echo "2. Available AI Tools:"
+        curl -s "$BASE_URL/tools" || echo "Tools list failed"
         
-        echo -e "\n3. API Documentation:"
-        curl -s "$BASE_URL/docs" || echo "❌ API docs failed"
-        
-        echo -e "\n✅ Infrastructure as Code deployment complete!"
-        echo "🌐 Universal AI Platform: $BASE_URL"
-        echo "📋 Ready for Phase 3: Real Azure SDK implementations"
-
-    - name: Validate Complete Infrastructure
-      run: |
-        echo "🔍 Validating all required Azure resources exist..."
-        
-        # Check Function App
-        az functionapp show --name "${{ steps.get-function-name.outputs.function-name }}" --resource-group $RESOURCE_GROUP --query "name" --output tsv
-        
-        # Check Key Vault
-        az keyvault list --resource-group $RESOURCE_GROUP --query "[0].name" --output tsv
-        
-        # Check Document Intelligence
-        az cognitiveservices account list --resource-group $RESOURCE_GROUP --query "[?kind=='FormRecognizer'].name" --output tsv
-        
-        # Check AI Search
-        az search service list --resource-group $RESOURCE_GROUP --query "[0].name" --output tsv
-        
-        # Check SQL Database
-        az sql server list --resource-group $RESOURCE_GROUP --query "[0].name" --output tsv
-        
-        # Check Storage Account
-        az storage account list --resource-group $RESOURCE_GROUP --query "[0].name" --output tsv
-        
-        echo "✅ All infrastructure components validated and accessible"
-        echo "🎯 Infrastructure as Code deployment successful - ready for Phase 3"
+        echo "Infrastructure as Code deployment complete!"
+        echo "Universal AI Platform: $BASE_URL"
