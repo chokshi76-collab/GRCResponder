@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "pdf-ai-agent-mcp",
   "version": "1.0.0",
   "description": "PDF AI Agent MCP Server with Azure backend for PDF processing, CSV analysis, and web scraping",
@@ -18,12 +18,12 @@
     "@azure/identity": "^4.0.1",
     "@azure/ai-form-recognizer": "^5.0.0",
     "@azure/search-documents": "^12.1.0",
+    "@azure/storage-blob": "^12.24.0",
     "mssql": "^10.0.2",
     "puppeteer": "^21.11.0",
     "csv-parser": "^3.0.0",
     "csv-stringify": "^6.4.6",
     "@azure/functions": "^4.0.0"
-    "@azure/storage-blob": "^12.24.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
