@@ -222,6 +222,14 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: '1'
+        }        }
+        {
+          name: 'AZURE_FORM_RECOGNIZER_ENDPOINT'
+          value: '@Microsoft.KeyVault(VaultName=;SecretName=document-intelligence-endpoint)'
+        }
+        {
+          name: 'AZURE_FORM_RECOGNIZER_KEY'
+          value: '@Microsoft.KeyVault(VaultName=;SecretName=document-intelligence-key)'
         }
       ]
       cors: {
@@ -315,3 +323,4 @@ output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
 output functionAppName string = functionApp.name
+
