@@ -222,15 +222,17 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: '1'
-        }        }
+        },
+        // --- CORRECTED SECTION STARTS HERE ---
         {
           name: 'AZURE_FORM_RECOGNIZER_ENDPOINT'
-          value: '@Microsoft.KeyVault(VaultName=;SecretName=document-intelligence-endpoint)'
-        }
+          value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=document-intelligence-endpoint)'
+        },
         {
           name: 'AZURE_FORM_RECOGNIZER_KEY'
-          value: '@Microsoft.KeyVault(VaultName=;SecretName=document-intelligence-key)'
+          value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=document-intelligence-key)'
         }
+        // --- CORRECTED SECTION ENDS HERE ---
       ]
       cors: {
         allowedOrigins: [
@@ -313,8 +315,6 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
-
-
 // Outputs
 output keyVaultName string = keyVault.name
 output documentIntelligenceName string = documentIntelligence.name
@@ -323,4 +323,3 @@ output sqlServerName string = sqlServer.name
 output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
 output functionAppName string = functionApp.name
-
