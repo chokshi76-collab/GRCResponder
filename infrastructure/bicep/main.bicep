@@ -4,9 +4,6 @@ param environmentName string = 'dev'
 @description('Location for all resources')
 param location string = resourceGroup().location
 
-@description('User Object ID for Key Vault access')
-param userObjectId string
-
 @description('Object ID for Key Vault access policy')
 param keyVaultAccessObjectId string
 
@@ -23,6 +20,7 @@ var appServicePlanName = 'asp-pdfai-${environmentName}-${uniqueSuffix}'
 
 // SQL credentials
 var sqlAdministratorLogin = 'sqladmin'
+@secure()
 var sqlAdministratorPassword = '${uniqueString(resourceGroup().id, environmentName)}Aa1!'
 
 // Storage Account
@@ -185,11 +183,11 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(storageAccount.id, storageAccount.apiVersion).keys[0].value}'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(storageAccount.id, storageAccount.apiVersion).keys[0].value}'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'WEBSITE_CONTENTSHARE'
@@ -209,7 +207,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         }
         {
           name: 'KEY_VAULT_URL'
-          value: 'https://${keyVault.name}.vault.azure.net/'
+          value: keyVault.properties.vaultUri
         }
         {
           name: 'ENVIRONMENT_NAME'
@@ -222,17 +220,15 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: '1'
-        },
-        // --- CORRECTED SECTION STARTS HERE ---
+        }
         {
           name: 'AZURE_FORM_RECOGNIZER_ENDPOINT'
           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=document-intelligence-endpoint)'
-        },
+        }
         {
           name: 'AZURE_FORM_RECOGNIZER_KEY'
           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=document-intelligence-key)'
         }
-        // --- CORRECTED SECTION ENDS HERE ---
       ]
       cors: {
         allowedOrigins: [
@@ -279,7 +275,7 @@ resource documentIntelligenceKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   parent: keyVault
   name: 'document-intelligence-key'
   properties: {
-    value: listKeys(documentIntelligence.id, documentIntelligence.apiVersion).key1
+    value: documentIntelligence.listKeys().key1
   }
 }
 
@@ -295,7 +291,7 @@ resource searchServiceKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' =
   parent: keyVault
   name: 'search-service-key'
   properties: {
-    value: listAdminKeys(searchService.id, searchService.apiVersion).primaryKey
+    value: searchService.listAdminKeys().primaryKey
   }
 }
 
@@ -311,7 +307,7 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   parent: keyVault
   name: 'storage-connection-string'
   properties: {
-    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${listKeys(storageAccount.id, storageAccount.apiVersion).keys[0].value}'
+    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
   }
 }
 
