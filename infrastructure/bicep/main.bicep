@@ -4,7 +4,10 @@ param environmentName string = 'dev'
 @description('Location for all resources')
 param location string = resourceGroup().location
 
-@description('Object ID for Key Vault access policy')
+@description('User Object ID passed by the deployment pipeline.')
+param userObjectId string
+
+@description('Object ID for the Service Principal Key Vault access policy.')
 param keyVaultAccessObjectId string
 
 // Generate unique names with environment suffix
