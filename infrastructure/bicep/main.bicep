@@ -21,7 +21,7 @@ var appServicePlanName = 'asp-pdfai-${environmentName}-${uniqueSuffix}'
 // SQL credentials
 var sqlAdministratorLogin = 'sqladmin'
 @secure()
-var sqlAdministratorPassword = '${uniqueString(resourceGroup().id, environmentName)}Aa1!'
+param sqlAdministratorPassword string = '${uniqueString(resourceGroup().id, environmentName)}Aa1!'
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -279,7 +279,7 @@ resource documentIntelligenceKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
-resource documentIntelligenceEndpointSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource documentIntelligenceEndpointSecret 'Microsoft.KeyVault/vaults/secrets@2I023-07-01' = {
   parent: keyVault
   name: 'document-intelligence-endpoint'
   properties: {
