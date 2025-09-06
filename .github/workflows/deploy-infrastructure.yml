@@ -54,6 +54,7 @@ jobs:
           --template-file infrastructure/bicep/main.bicep \
           --parameters environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json \
           --parameters userObjectId="${{ secrets.USER_OBJECT_ID }}" \
+          --mode Complete \
           --name "infrastructure-$(date +%Y%m%d-%H%M%S)"
     
     - name: Get Deployment Outputs

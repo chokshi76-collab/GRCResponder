@@ -71,4 +71,5 @@ jobs:
           -ResourceGroupName ${{ env.RESOURCE_GROUP }} `
           -TemplateFile "infrastructure/bicep/main.bicep" `
           -TemplateParameterFile "environments/dev/parameters.dev.json" `
+          -Mode Complete `
           -Verbose
