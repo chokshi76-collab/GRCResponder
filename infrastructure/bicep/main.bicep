@@ -15,15 +15,12 @@ var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 var keyVaultName = 'kv-pdfai-${uniqueSuffix}'
 var documentIntelligenceName = 'di-pdfai-${environmentName}-${uniqueSuffix}'
 var searchServiceName = 'srch-pdfai-${environmentName}-${uniqueSuffix}'
-var sqlServerName = 'sql-pdfai-${environmentName}-${uniqueSuffix}'
-var sqlDatabaseName = 'sqldb-pdfai-${environmentName}'
+// SQL resources removed - using serverless architecture
 var storageAccountName = 'stpdfai${environmentName}${uniqueSuffix}'
 var functionAppName = 'func-pdfai-${environmentName}-${uniqueSuffix}'
 var appServicePlanName = 'asp-pdfai-${environmentName}-${uniqueSuffix}'
 
-// SQL credentials (Generated internally and stored in Key Vault, not passed as a parameter)
-var sqlAdministratorLogin = 'sqladmin'
-var sqlAdministratorPassword = '${uniqueString(resourceGroup().id, environmentName)}Aa1!'
+// SQL credentials removed - using serverless architecture
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
@@ -87,12 +84,12 @@ resource documentIntelligence 'Microsoft.CognitiveServices/accounts@2023-10-01-p
   }
 }
 
-// Azure AI Search
+// Azure AI Search - FREE tier for development (saves $250/month)
 resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
   name: searchServiceName
   location: location
   sku: {
-    name: 'basic'
+    name: 'free'
   }
   properties: {
     replicaCount: 1
@@ -112,48 +109,8 @@ resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
   }
 }
 
-// SQL Server
-resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
-  name: sqlServerName
-  location: location
-  properties: {
-    administratorLogin: sqlAdministratorLogin
-    administratorLoginPassword: sqlAdministratorPassword
-    version: '12.0'
-    publicNetworkAccess: 'Enabled'
-  }
-}
-
-// SQL Database
-resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-05-01-preview' = {
-  parent: sqlServer
-  name: sqlDatabaseName
-  location: location
-  sku: {
-    name: 'Basic'
-    tier: 'Basic'
-    capacity: 5
-  }
-  properties: {
-    collation: 'SQL_Latin1_General_CP1_CI_AS'
-    maxSizeBytes: 2147483648
-    catalogCollation: 'SQL_Latin1_General_CP1_CI_AS'
-    zoneRedundant: false
-    readScale: 'Disabled'
-    requestedBackupStorageRedundancy: 'Local'
-    isLedgerOn: false
-  }
-}
-
-// SQL Firewall rule for Azure services
-resource sqlFirewallRule 'Microsoft.Sql/servers/firewallRules@2023-05-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
+// SQL resources removed - using pure serverless architecture with Azure Functions + Document Intelligence + AI Search
+// Future data storage will use Azure Tables, Cosmos DB, or external APIs as needed
 
 // App Service Plan for Function App
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
@@ -265,13 +222,7 @@ resource keyVaultAccessPolicy 'Microsoft.KeyVault/vaults/accessPolicies@2023-07-
 }
 
 // Store secrets in Key Vault
-resource sqlConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'sql-connection-string'
-  properties: {
-    value: 'Server=tcp:${sqlServer.properties.fullyQualifiedDomainName},1433;Initial Catalog=${sqlDatabaseName};Persist Security Info=False;User ID=${sqlAdministratorLogin};Password=${sqlAdministratorPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
-  }
-}
+// SQL connection string removed - using serverless architecture
 
 resource documentIntelligenceKeySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
@@ -317,7 +268,6 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
 output keyVaultName string = keyVault.name
 output documentIntelligenceName string = documentIntelligence.name
 output searchServiceName string = searchService.name
-output sqlServerName string = sqlServer.name
-output sqlDatabaseName string = sqlDatabase.name
+// SQL outputs removed - using serverless architecture
 output storageAccountName string = storageAccount.name
 output functionAppName string = functionApp.name
