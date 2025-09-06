@@ -13,7 +13,15 @@
       "Bash(az functionapp log tail:*)",
       "Bash(az functionapp list:*)",
       "Bash(az search service:*)",
-      "Bash(az resource list:*)"
+      "Bash(az resource list:*)",
+      "Bash(az functionapp delete:*)",
+      "Bash(az appservice plan delete:*)",
+      "Bash(az sql server delete:*)",
+      "Bash(az cognitiveservices account delete:*)",
+      "Bash(az storage account delete:*)",
+      "Bash(az keyvault delete:*)",
+      "Bash(az cognitiveservices account keys list:*)",
+      "Bash(az functionapp restart:*)"
     ],
     "deny": [],
     "ask": []
