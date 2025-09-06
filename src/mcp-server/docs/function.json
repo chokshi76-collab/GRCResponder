@@ -1,5 +1,4 @@
 {
-  "scriptFile": "../dist/index.js",
   "bindings": [
     {
       "methods": [
@@ -17,6 +16,5 @@
       "type": "http",
       "direction": "out"
     }
-  ],
-  "entryPoint": "apiDocs"
+  ]
 }

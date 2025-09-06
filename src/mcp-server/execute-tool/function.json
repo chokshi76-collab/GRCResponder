@@ -1,5 +1,4 @@
 {
-  "scriptFile": "../dist/index.js",
   "bindings": [
     {
       "methods": [
@@ -8,7 +7,7 @@
       ],
       "authLevel": "anonymous",
       "direction": "in",
-      "route": "tools/{toolName}",
+      "route": "tools/{name}",
       "name": "req",
       "type": "httpTrigger"
     },
@@ -17,6 +16,5 @@
       "type": "http",
       "direction": "out"
     }
-  ],
-  "entryPoint": "executeTool"
+  ]
 }
