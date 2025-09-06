@@ -10,7 +10,10 @@
       "Bash(git push:*)",
       "Bash(curl:*)",
       "Bash(az functionapp logs tail:*)",
-      "Bash(az functionapp log tail:*)"
+      "Bash(az functionapp log tail:*)",
+      "Bash(az functionapp list:*)",
+      "Bash(az search service:*)",
+      "Bash(az resource list:*)"
     ],
     "deny": [],
     "ask": []
