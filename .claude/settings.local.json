@@ -29,7 +29,8 @@
       "Bash(az functionapp create:*)",
       "Bash(az appservice plan create:*)",
       "Bash(az group deployment create:*)",
-      "Bash(az functionapp plan create:*)"
+      "Bash(az functionapp plan create:*)",
+      "Bash(az functionapp deployment:*)"
     ],
     "deny": [],
     "ask": []
