@@ -21,7 +21,10 @@
       "Bash(az storage account delete:*)",
       "Bash(az keyvault delete:*)",
       "Bash(az cognitiveservices account keys list:*)",
-      "Bash(az functionapp restart:*)"
+      "Bash(az functionapp restart:*)",
+      "Bash(gh run view:*)",
+      "Bash(az functionapp show:*)",
+      "Bash(gh workflow run:*)"
     ],
     "deny": [],
     "ask": []
