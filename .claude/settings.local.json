@@ -24,7 +24,12 @@
       "Bash(az functionapp restart:*)",
       "Bash(gh run view:*)",
       "Bash(az functionapp show:*)",
-      "Bash(gh workflow run:*)"
+      "Bash(gh workflow run:*)",
+      "Bash(az appservice plan show:*)",
+      "Bash(az functionapp create:*)",
+      "Bash(az appservice plan create:*)",
+      "Bash(az group deployment create:*)",
+      "Bash(az functionapp plan create:*)"
     ],
     "deny": [],
     "ask": []

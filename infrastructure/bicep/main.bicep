@@ -14,7 +14,7 @@ param keyVaultAccessObjectId string
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 var keyVaultName = 'kv-pdfai-${uniqueSuffix}'
 var documentIntelligenceName = 'di-pdfai-${environmentName}-${uniqueSuffix}'
-var searchServiceName = 'srch-pdfai-${environmentName}-${uniqueSuffix}'
+var searchServiceName = 'pdf-ai-agent-search-free-${environmentName}'
 // SQL resources removed - using serverless architecture
 var storageAccountName = 'stpdfai${environmentName}${uniqueSuffix}'
 var functionAppName = 'func-pdfai-${environmentName}-${uniqueSuffix}'
@@ -55,6 +55,14 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
           keys: ['all']
           secrets: ['all']
           certificates: ['all']
+        }
+      }
+      {
+        tenantId: tenant().tenantId
+        objectId: userObjectId
+        permissions: {
+          secrets: ['get', 'list']
+          keys: ['get', 'list']
         }
       }
     ]
