@@ -1,6 +1,6 @@
 {
   "name": "pdf-ai-agent-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PDF AI Agent MCP Server with Azure backend for PDF processing, CSV analysis, and web scraping",
   "main": "dist/index.js",
   "type": "module",
