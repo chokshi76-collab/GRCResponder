@@ -1,0 +1,39 @@
+# Ignore files that shouldn't be deployed to Azure Functions
+.git*
+.vscode/
+local.settings.json
+test/
+tests/
+*.log
+.env
+.env.*
+node_modules/.cache/
+*.md
+*.txt
+.DS_Store
+Thumbs.db
+
+# TypeScript source files (only deploy compiled JS)
+src/
+*.ts
+tsconfig.json
+
+# Development dependencies
+.eslintrc.*
+.prettierrc.*
+jest.config.*
+*.test.*
+*.spec.*
+
+# Large browser dependencies that might not be needed in Azure Functions
+node_modules/puppeteer/
+node_modules/chromium/
+node_modules/@types/
+node_modules/typescript/
+
+# Documentation and examples
+docs/
+examples/
+README*
+CHANGELOG*
+LICENSE*
