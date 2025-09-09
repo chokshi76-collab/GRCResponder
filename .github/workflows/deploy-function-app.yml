@@ -24,33 +24,6 @@ jobs:
       with:
         node-version: '18.x'
 
-    - name: npm clean install and build
-      run: |
-        cd src/mcp-server
-        npm cache clean --force
-        rm -rf node_modules package-lock.json
-        npm install --legacy-peer-deps
-        npm run build
-        # Clean up large dependencies not needed in production after build
-        rm -rf node_modules/puppeteer/.local-chromium
-        rm -rf node_modules/@types
-        rm -rf node_modules/typescript
-        rm -rf node_modules/tsx
-        rm -rf node_modules/rimraf
-        find node_modules -name "*.md" -delete
-        find node_modules -name "*.txt" -delete
-        find node_modules -name "LICENSE*" -delete
-        # Remove TypeScript source files but keep necessary config
-        find src -name "*.ts" -delete 2>/dev/null || true
-        rm -f tsconfig.json
-
-    - name: 'Deploy app to Azure Functions'
-      uses: Azure/functions-action@v1
-      with:
-        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
-        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
-
     - name: Install Az PowerShell Module
       shell: pwsh
       run: |
@@ -86,3 +59,30 @@ jobs:
           -Mode Complete `
           -Force `
           -Verbose
+
+    - name: npm clean install and build
+      run: |
+        cd src/mcp-server
+        npm cache clean --force
+        rm -rf node_modules package-lock.json
+        npm install --legacy-peer-deps
+        npm run build
+        # Clean up large dependencies not needed in production after build
+        rm -rf node_modules/puppeteer/.local-chromium
+        rm -rf node_modules/@types
+        rm -rf node_modules/typescript
+        rm -rf node_modules/tsx
+        rm -rf node_modules/rimraf
+        find node_modules -name "*.md" -delete
+        find node_modules -name "*.txt" -delete
+        find node_modules -name "LICENSE*" -delete
+        # Remove TypeScript source files but keep necessary config
+        find src -name "*.ts" -delete 2>/dev/null || true
+        rm -f tsconfig.json
+
+    - name: 'Deploy app to Azure Functions'
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+        package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
