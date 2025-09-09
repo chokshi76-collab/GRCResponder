@@ -40,8 +40,8 @@ jobs:
         find node_modules -name "*.md" -delete
         find node_modules -name "*.txt" -delete
         find node_modules -name "LICENSE*" -delete
-        # Remove source files, only keep dist
-        rm -rf src
+        # Remove TypeScript source files but keep necessary config
+        find src -name "*.ts" -delete 2>/dev/null || true
         rm -f tsconfig.json
 
     - name: 'Deploy app to Azure Functions'
