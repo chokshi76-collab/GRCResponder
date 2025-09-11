@@ -4,6 +4,7 @@
 import { InvocationContext } from "@azure/functions";
 import { ComplianceAnalysisParameters, ComplianceAnalysisResult } from "../shared/mcp-types.js";
 import { AzureClientsManager } from "../shared/azure-clients.js";
+import { TransparencyLogger } from "../shared/transparency-logger.js";
 
 interface ComplianceRule {
     regulation: string;
@@ -25,9 +26,11 @@ interface ComplianceCheck {
 export class RegulatoryComplianceAnalyzer {
     private azureClients: AzureClientsManager;
     private complianceRules: Map<string, ComplianceRule[]> = new Map();
+    private transparencyLogger: TransparencyLogger;
 
     constructor() {
         this.azureClients = AzureClientsManager.getInstance();
+        this.transparencyLogger = TransparencyLogger.getInstance();
         this.initializeComplianceRules();
     }
 
@@ -37,24 +40,79 @@ export class RegulatoryComplianceAnalyzer {
 
     async analyzeCompliance(
         parameters: ComplianceAnalysisParameters,
-        context: InvocationContext
+        context: InvocationContext,
+        sessionId?: string
     ): Promise<ComplianceAnalysisResult> {
+        const transparencySessionId = sessionId || this.transparencyLogger.createSession();
+        
+        await this.transparencyLogger.broadcastAgentThought(
+            transparencySessionId,
+            "Regulatory Compliance Intelligence Agent",
+            "Compliance Analysis Initialization",
+            "Starting comprehensive regulatory compliance analysis for utilities industry. Analyzing document against NERC CIP, EPA Environmental, and State Utility regulations to identify compliance gaps and risk exposures.",
+            "analyze_compliance",
+            context
+        );
+        
         context.log('Regulatory Compliance Analyzer: Starting compliance analysis');
         
         try {
             // Validate parameters
             if (!parameters.document_content && !parameters.document_url) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Regulatory Compliance Intelligence Agent",
+                    "Parameter Validation Error",
+                    "Document content or URL is required for compliance analysis. Cannot proceed without source material to analyze against regulatory frameworks.",
+                    undefined,
+                    context
+                );
                 throw new Error('Either document_content or document_url parameter is required');
             }
 
             const complianceDomain = parameters.compliance_domain || 'comprehensive';
             const includeRemediation = parameters.include_remediation !== false;
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                1,
+                7,
+                "Document Acquisition & Processing",
+                14,
+                context
+            );
+
+            await this.transparencyLogger.broadcastDecisionPoint(
+                transparencySessionId,
+                "Regulatory Compliance Intelligence Agent",
+                `Selected ${complianceDomain} compliance framework for analysis`,
+                `Analyzing compliance requirements for ${complianceDomain} domain. Remediation planning: ${includeRemediation ? 'enabled' : 'disabled'}. Audit scope: ${parameters.audit_scope ? parameters.audit_scope.join(', ') : 'comprehensive'}.`,
+                ['nerc_cip', 'epa_environmental', 'state_utility', 'comprehensive'],
+                0.95,
+                context
+            );
+
             // Get document content
             let documentContent: string;
             if (parameters.document_content) {
                 documentContent = parameters.document_content;
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Regulatory Compliance Intelligence Agent",
+                    "Document Content Processing",
+                    `Processing provided document content for compliance analysis. Document length: ${parameters.document_content.length} characters.`,
+                    "process_document",
+                    context
+                );
             } else if (parameters.document_url) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Regulatory Compliance Intelligence Agent",
+                    "Document Retrieval",
+                    `Fetching document from URL for compliance analysis: ${parameters.document_url}`,
+                    "fetch_document",
+                    context
+                );
                 documentContent = await this.fetchDocumentFromURL(parameters.document_url);
             } else {
                 throw new Error('No document content provided');
@@ -62,18 +120,46 @@ export class RegulatoryComplianceAnalyzer {
 
             context.log(`Analyzing document for ${complianceDomain} compliance (${documentContent.length} characters)`);
 
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Document Analysis Ready",
+                `Successfully acquired document content (${documentContent.length} characters). Proceeding with comprehensive ${complianceDomain} compliance analysis using advanced pattern matching and regulatory intelligence.`,
+                "start_analysis",
+                context
+            );
+
             // Perform compliance analysis
             const analysisResult = await this.performComplianceAnalysis(
                 documentContent,
                 complianceDomain,
                 parameters.audit_scope,
                 includeRemediation,
-                context
+                context,
+                transparencySessionId
             );
 
             return analysisResult;
 
         } catch (error) {
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Compliance Analysis Error",
+                `Regulatory compliance analysis failed with error: ${error instanceof Error ? error.message : 'Unknown error'}. Implementing error recovery and returning compliance assessment with critical risk designation.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                'analyze_compliance',
+                'error',
+                undefined,
+                { error: error instanceof Error ? error.message : 'Unknown error' },
+                context
+            );
+
             context.error('Error in regulatory compliance analysis:', error);
             
             return {
@@ -112,7 +198,8 @@ export class RegulatoryComplianceAnalyzer {
         complianceDomain: string,
         auditScope?: string[],
         includeRemediation: boolean = true,
-        context?: InvocationContext
+        context?: InvocationContext,
+        sessionId?: string
     ): Promise<ComplianceAnalysisResult> {
         
         const analysisId = `compliance_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -122,9 +209,49 @@ export class RegulatoryComplianceAnalyzer {
             details: `Starting ${complianceDomain} compliance analysis`
         }];
 
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                2,
+                7,
+                "Regulatory Framework Selection",
+                29,
+                context
+            );
+        }
+
         // Get applicable compliance rules
         const applicableRules = this.getApplicableRules(complianceDomain, auditScope);
         context?.log(`Applying ${applicableRules.length} compliance rules for ${complianceDomain}`);
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Compliance Rules Application",
+                `Applied ${applicableRules.length} compliance rules for ${complianceDomain} domain. Rules span critical infrastructure protection, environmental regulations, and utility service standards.`,
+                "apply_rules",
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                3,
+                7,
+                "Compliance Checks Execution",
+                43,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                sessionId,
+                'compliance_checks',
+                'starting',
+                undefined,
+                { ruleCount: applicableRules.length, domain: complianceDomain },
+                context
+            );
+        }
 
         // Perform compliance checks
         const complianceChecks = await this.runComplianceChecks(
@@ -133,17 +260,111 @@ export class RegulatoryComplianceAnalyzer {
             context
         );
 
+        if (sessionId) {
+            await this.transparencyLogger.broadcastToolExecution(
+                sessionId,
+                'compliance_checks',
+                'complete',
+                undefined,
+                { checksCompleted: complianceChecks.length },
+                context
+            );
+        }
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                4,
+                7,
+                "Risk Assessment & Scoring",
+                57,
+                context
+            );
+        }
+
         // Calculate overall compliance score
         const overallScore = this.calculateComplianceScore(complianceChecks);
         const riskLevel = this.determineRiskLevel(overallScore, complianceChecks);
 
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Compliance Scoring Complete",
+                `Calculated overall compliance score: ${overallScore}/100 with risk level: ${riskLevel}. Applied severity weighting and confidence factors to determine comprehensive risk assessment.`,
+                "calculate_score",
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                5,
+                7,
+                "Violation Identification",
+                71,
+                context
+            );
+        }
+
         // Identify violations
         const violations = this.identifyViolations(complianceChecks);
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Violation Assessment",
+                `Identified ${violations.length} compliance violations requiring remediation. Violations span ${new Set(violations.map(v => v.severity)).size} severity levels with potential regulatory penalties.`,
+                "identify_violations",
+                context
+            );
+        }
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                6,
+                7,
+                "Remediation Planning",
+                86,
+                context
+            );
+        }
 
         // Generate remediation plan if requested
         let remediationPlan = undefined;
         if (includeRemediation && violations.length > 0) {
+            if (sessionId) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    sessionId,
+                    "Regulatory Compliance Intelligence Agent",
+                    "Remediation Strategy Development",
+                    `Developing comprehensive remediation plan for ${violations.length} compliance violations. Prioritizing by regulatory risk, implementation timeline, and estimated costs.`,
+                    "generate_remediation",
+                    context
+                );
+            }
             remediationPlan = this.generateRemediationPlan(violations, complianceChecks);
+        } else if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Remediation Planning Skipped",
+                violations.length === 0 ? "No violations found - remediation planning not required." : "Remediation planning disabled per configuration.",
+                undefined,
+                context
+            );
+        }
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                7,
+                7,
+                "Compliance Analysis Complete",
+                100,
+                context
+            );
         }
 
         auditTrail.push({
@@ -152,9 +373,9 @@ export class RegulatoryComplianceAnalyzer {
             details: `Found ${violations.length} violations with overall score ${overallScore}`
         });
 
-        return {
+        const finalResult = {
             analysis_id: analysisId,
-            status: 'success',
+            status: 'success' as const,
             compliance_domain: complianceDomain,
             overall_score: overallScore,
             risk_level: riskLevel,
@@ -172,6 +393,35 @@ export class RegulatoryComplianceAnalyzer {
             processed_at: new Date().toISOString(),
             message: `Compliance analysis completed. Overall score: ${overallScore}/100, Risk level: ${riskLevel}, Found ${violations.length} violations.`
         };
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "Regulatory Compliance Intelligence Agent",
+                "Compliance Analysis Complete",
+                `Successfully completed comprehensive regulatory compliance analysis for ${complianceDomain} domain. Score: ${overallScore}/100, Risk: ${riskLevel}, Violations: ${violations.length}, Remediation items: ${remediationPlan ? remediationPlan.length : 0}. Analysis ready for regulatory review and action planning.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                sessionId,
+                'analyze_compliance',
+                'complete',
+                Date.now() - new Date(finalResult.processed_at).getTime(),
+                {
+                    complianceDomain,
+                    overallScore,
+                    riskLevel,
+                    violationsFound: violations.length,
+                    checksPerformed: complianceChecks.length,
+                    remediationItems: remediationPlan ? remediationPlan.length : 0
+                },
+                context
+            );
+        }
+
+        return finalResult;
     }
 
     private initializeComplianceRules(): void {

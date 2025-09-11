@@ -128,7 +128,9 @@ resource signalRService 'Microsoft.SignalRService/signalR@2023-06-01-preview' = 
     capacity: 1
   }
   properties: {
-    serviceMode: 'Serverless'
+    serverless: {
+      connectionTimeoutInSeconds: 30
+    }
     features: [
       {
         flag: 'ServiceMode'

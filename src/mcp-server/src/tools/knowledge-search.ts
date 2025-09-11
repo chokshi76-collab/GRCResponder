@@ -6,6 +6,7 @@ import { SearchClient } from "@azure/search-documents";
 import { OpenAIClient } from "@azure/openai";
 import { KnowledgeSearchParameters, KnowledgeSearchResult } from "../shared/mcp-types.js";
 import { AzureClientsManager } from "../shared/azure-clients.js";
+import { TransparencyLogger } from "../shared/transparency-logger.js";
 
 interface DocumentRecord {
     id: string;
@@ -36,9 +37,11 @@ export class KnowledgeGraphSearch {
     private openAIClient?: OpenAIClient;
     private readonly embeddingModel = "text-embedding-ada-002";
     private readonly indexName = "knowledge-documents";
+    private transparencyLogger: TransparencyLogger;
 
     constructor() {
         this.azureClients = AzureClientsManager.getInstance();
+        this.transparencyLogger = TransparencyLogger.getInstance();
     }
 
     async initialize(): Promise<void> {
@@ -50,12 +53,31 @@ export class KnowledgeGraphSearch {
         await this.ensureSearchIndex();
     }
 
-    async searchKnowledge(parameters: KnowledgeSearchParameters, context: InvocationContext): Promise<KnowledgeSearchResult> {
+    async searchKnowledge(parameters: KnowledgeSearchParameters, context: InvocationContext, sessionId?: string): Promise<KnowledgeSearchResult> {
+        const transparencySessionId = sessionId || this.transparencyLogger.createSession();
+        
+        await this.transparencyLogger.broadcastAgentThought(
+            transparencySessionId,
+            "Knowledge Intelligence Agent",
+            "Knowledge Search Initialization",
+            "Starting intelligent knowledge graph search with advanced semantic understanding. Analyzing query intent and selecting optimal search strategy.",
+            "search_knowledge",
+            context
+        );
+        
         context.log('Knowledge Graph Search: Starting semantic search with embeddings');
         
         try {
             // Validate parameters
             if (!parameters.query) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Knowledge Intelligence Agent",
+                    "Parameter Validation Error",
+                    "Search query parameter is missing. Cannot proceed with knowledge search.",
+                    undefined,
+                    context
+                );
                 throw new Error('query parameter is required');
             }
 
@@ -64,14 +86,59 @@ export class KnowledgeGraphSearch {
             const similarityThreshold = parameters.similarity_threshold || 0.7;
             const includeMetadata = parameters.include_metadata || true;
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                1,
+                5,
+                "Search Strategy Analysis",
+                20,
+                context
+            );
+
+            await this.transparencyLogger.broadcastDecisionPoint(
+                transparencySessionId,
+                "Knowledge Intelligence Agent",
+                `Selected ${searchType} search strategy`,
+                `Based on query complexity and requirements, choosing ${searchType} approach. Max results: ${maxResults}, similarity threshold: ${similarityThreshold}`,
+                ['semantic', 'keyword', 'hybrid'],
+                0.9,
+                context
+            );
+
             const startTime = Date.now();
 
             // Perform search based on type
             let searchResults: any[];
             let embeddingModel: string | undefined;
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                2,
+                5,
+                "Executing Knowledge Search",
+                40,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                `${searchType}_search`,
+                'starting',
+                undefined,
+                undefined,
+                context
+            );
+
             switch (searchType) {
                 case 'semantic':
+                    await this.transparencyLogger.broadcastAgentThought(
+                        transparencySessionId,
+                        "Knowledge Intelligence Agent",
+                        "Semantic Search Execution",
+                        "Performing advanced semantic search using neural embeddings. Generating query vectors and computing semantic similarity across knowledge base.",
+                        "semantic_search",
+                        context
+                    );
                     const result = await this.performSemanticSearch(
                         parameters.query,
                         maxResults,
@@ -83,6 +150,14 @@ export class KnowledgeGraphSearch {
                     embeddingModel = result.embeddingModel;
                     break;
                 case 'keyword':
+                    await this.transparencyLogger.broadcastAgentThought(
+                        transparencySessionId,
+                        "Knowledge Intelligence Agent",
+                        "Keyword Search Execution",
+                        "Performing traditional keyword-based search with full-text indexing. Optimizing for exact term matches and relevance scoring.",
+                        "keyword_search",
+                        context
+                    );
                     searchResults = await this.performKeywordSearch(
                         parameters.query,
                         maxResults,
@@ -92,6 +167,14 @@ export class KnowledgeGraphSearch {
                     break;
                 case 'hybrid':
                 default:
+                    await this.transparencyLogger.broadcastAgentThought(
+                        transparencySessionId,
+                        "Knowledge Intelligence Agent",
+                        "Hybrid Search Execution",
+                        "Executing hybrid search strategy combining semantic understanding with keyword precision. Merging neural and traditional search results for optimal accuracy.",
+                        "hybrid_search",
+                        context
+                    );
                     const hybridResult = await this.performHybridSearch(
                         parameters.query,
                         maxResults,
@@ -106,10 +189,55 @@ export class KnowledgeGraphSearch {
 
             const processingTime = Date.now() - startTime;
 
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                `${searchType}_search`,
+                'complete',
+                processingTime,
+                { resultCount: searchResults.length, searchType },
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                3,
+                5,
+                "Results Processing & Formatting",
+                60,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Knowledge Intelligence Agent",
+                "Results Processing",
+                `Search completed successfully. Found ${searchResults.length} relevant documents. Now processing and formatting results for optimal presentation.`,
+                "format_results",
+                context
+            );
+
             // Process and format results
             const formattedResults = await this.formatSearchResults(
                 searchResults,
                 includeMetadata,
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                4,
+                5,
+                "Knowledge Graph Relationship Mapping",
+                80,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Knowledge Intelligence Agent",
+                "Relationship Graph Construction",
+                "Building knowledge graph relationships between discovered documents. Analyzing semantic connections and cross-references for enhanced context.",
+                "build_relationships",
                 context
             );
 
@@ -119,9 +247,18 @@ export class KnowledgeGraphSearch {
                 context
             );
 
-            return {
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                5,
+                5,
+                "Knowledge Search Completion",
+                100,
+                context
+            );
+
+            const finalResult = {
                 search_id: `search_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                status: 'success',
+                status: 'success' as const,
                 query: parameters.query,
                 search_type: searchType,
                 results: resultsWithRelationships,
@@ -132,7 +269,50 @@ export class KnowledgeGraphSearch {
                 message: `Knowledge search completed successfully. Found ${searchResults.length} relevant documents using ${searchType} search.`
             };
 
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Knowledge Intelligence Agent",
+                "Knowledge Search Complete",
+                `Successfully completed knowledge search operation. Retrieved ${searchResults.length} relevant documents with ${resultsWithRelationships.filter(r => r.relationships && r.relationships.length > 0).length} relationship mappings. Processing time: ${processingTime}ms using ${searchType} search strategy.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                'search_knowledge',
+                'complete',
+                processingTime,
+                {
+                    searchType,
+                    totalResults: searchResults.length,
+                    relationshipMappings: resultsWithRelationships.filter(r => r.relationships && r.relationships.length > 0).length,
+                    embeddingModel
+                },
+                context
+            );
+
+            return finalResult;
+
         } catch (error) {
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Knowledge Intelligence Agent",
+                "Knowledge Search Error",
+                `Knowledge search operation failed with error: ${error instanceof Error ? error.message : 'Unknown error'}. Implementing graceful error handling and returning diagnostic information.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                'search_knowledge',
+                'error',
+                undefined,
+                { error: error instanceof Error ? error.message : 'Unknown error' },
+                context
+            );
+
             context.error('Error in knowledge graph search:', error);
             
             return {

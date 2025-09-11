@@ -4,6 +4,7 @@
 import { InvocationContext } from "@azure/functions";
 import { DocumentAnalysisClient, AzureKeyCredential } from "@azure/ai-form-recognizer";
 import { BlobServiceClient } from "@azure/storage-blob";
+import { TransparencyLogger } from "../shared/transparency-logger.js";
 
 export interface PdfProcessingParameters {
     file_path: string;
@@ -59,8 +60,10 @@ export class PdfProcessor {
     private client: DocumentAnalysisClient | null = null;
     private blobService: BlobServiceClient | null = null;
     private isInitialized = false;
+    private transparencyLogger: TransparencyLogger;
 
     constructor() {
+        this.transparencyLogger = TransparencyLogger.getInstance();
         this.initialize();
     }
 
@@ -106,6 +109,25 @@ export class PdfProcessor {
         }
     }
 
+    private getModelDescription(modelId: string): string {
+        switch (modelId) {
+            case 'prebuilt-read':
+                return 'text extraction and OCR processing';
+            case 'prebuilt-layout':
+                return 'document layout analysis and table detection';
+            case 'prebuilt-document':
+                return 'comprehensive document analysis including text, tables, and key-value pairs';
+            default:
+                return 'general document processing';
+        }
+    }
+
+    private getAlternativeModels(analysisType: string): string[] {
+        const allModels = ['prebuilt-read', 'prebuilt-layout', 'prebuilt-document'];
+        const selectedModel = this.getModelId(analysisType);
+        return allModels.filter(model => model !== selectedModel);
+    }
+
     private prepareDocumentInput(filePath: string): string {
         if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
             return filePath;
@@ -146,41 +168,226 @@ export class PdfProcessor {
         }
     }
 
-    async processPdf(parameters: PdfProcessingParameters, context: InvocationContext): Promise<PdfProcessingResult> {
+    async processPdf(parameters: PdfProcessingParameters, context: InvocationContext, sessionId?: string): Promise<PdfProcessingResult> {
         context.log('PDF Processor: Starting processing with Azure Document Intelligence');
         
+        // Initialize transparency session if not provided
+        const transparencySessionId = sessionId || this.transparencyLogger.createSession();
+        
         try {
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "Document Analysis Initialization",
+                "Starting PDF document analysis. Validating input parameters and determining optimal processing strategy.",
+                "process_pdf",
+                context
+            );
+
             // Validate parameters
             if (!parameters.file_path) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "PDF Document Intelligence Agent",
+                    "Parameter Validation",
+                    "Error: No file path provided. PDF processing requires a valid URL or base64 data.",
+                    "process_pdf",
+                    context
+                );
                 throw new Error('file_path parameter is required');
             }
 
             const analysisType = parameters.analysis_type || 'text';
             
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "Analysis Strategy Selection",
+                `Selected analysis type: '${analysisType}'. This determines which AI model will process the document. Text analysis uses OCR, comprehensive analysis extracts tables and key-value pairs.`,
+                "process_pdf",
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                1,
+                5,
+                "Configuration Check",
+                20,
+                context
+            );
+
             // Check if Azure Document Intelligence is configured
             if (!this.isInitialized || !this.client) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "PDF Document Intelligence Agent",
+                    "Configuration Analysis",
+                    "Azure Document Intelligence is not properly configured. Providing setup guidance instead of processing.",
+                    "process_pdf",
+                    context
+                );
                 return this.returnConfigurationGuidance(parameters, analysisType);
             }
 
             const modelId = this.getModelId(analysisType);
+            
+            await this.transparencyLogger.broadcastDecisionPoint(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                `Use ${modelId} model for analysis`,
+                `Based on analysis type '${analysisType}', I'm selecting the ${modelId} model. This model is optimized for ${this.getModelDescription(modelId)}.`,
+                this.getAlternativeModels(analysisType),
+                0.95,
+                context
+            );
+
             const documentInput = this.prepareDocumentInput(parameters.file_path);
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                2,
+                5,
+                "Document Preparation",
+                40,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "Document Input Processing",
+                `Prepared document input for Azure analysis. Document source: ${parameters.file_path.startsWith('http') ? 'URL' : 'Base64 data'}. Ready to send to Azure Document Intelligence API.`,
+                "process_pdf",
+                context
+            );
+
             context.log(`Starting document analysis with model: ${modelId} for file: ${parameters.file_path}`);
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                "process_pdf",
+                "starting",
+                undefined,
+                undefined,
+                context
+            );
 
             // Start document analysis with simplified API call
             const poller = await this.client.beginAnalyzeDocument(modelId as any, documentInput as any);
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                3,
+                5,
+                "Azure AI Analysis",
+                60,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "AI Processing",
+                `Document submitted to Azure Document Intelligence. The AI is now analyzing the document structure, extracting text, identifying tables, and recognizing key-value pairs using advanced OCR and ML models.`,
+                "process_pdf",
+                context
+            );
+
             // Wait for analysis to complete
+            const startTime = Date.now();
             const result = await poller.pollUntilDone();
+            const processingTime = Date.now() - startTime;
             
             if (!result) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "PDF Document Intelligence Agent",
+                    "Analysis Failure",
+                    "Azure Document Intelligence returned no results. This could indicate a processing error or unsupported document format.",
+                    "process_pdf",
+                    context
+                );
                 throw new Error('Document analysis failed - no results returned');
             }
 
-            return await this.processAnalysisResults(result, parameters, analysisType, modelId, context);
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                4,
+                5,
+                "Results Processing",
+                80,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "Results Analysis",
+                `Azure AI analysis completed in ${processingTime}ms. Processing results to extract structured data including text content, tables, and key-value pairs. Calculating confidence scores.`,
+                "process_pdf",
+                context
+            );
+
+            const analysisResults = await this.processAnalysisResults(result, parameters, analysisType, modelId, context, transparencySessionId);
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                5,
+                5,
+                "Analysis Complete",
+                100,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                "process_pdf",
+                "complete",
+                processingTime,
+                {
+                    documentId: analysisResults.document_id,
+                    pageCount: analysisResults.page_count,
+                    tablesFound: analysisResults.tables_found,
+                    confidence: analysisResults.confidence_score
+                },
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "PDF Document Intelligence Agent",
+                "Final Analysis Summary",
+                `Document processing complete! Successfully extracted ${analysisResults.word_count} words from ${analysisResults.page_count} pages, found ${analysisResults.tables_found} tables, and ${analysisResults.key_value_pairs_found} key-value pairs with ${(analysisResults.confidence_score || 0) * 100}% confidence.`,
+                "process_pdf",
+                context
+            );
+
+            return analysisResults;
 
         } catch (error) {
             context.error('Error in PDF processing module:', error);
+            
+            // Broadcast error to transparency system
+            if (transparencySessionId) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "PDF Document Intelligence Agent",
+                    "Error Analysis",
+                    `PDF processing failed: ${error instanceof Error ? error.message : 'Unknown error'}. This could be due to network issues, unsupported document format, or Azure service configuration problems.`,
+                    "process_pdf",
+                    context
+                );
+
+                await this.transparencyLogger.broadcastToolExecution(
+                    transparencySessionId,
+                    "process_pdf",
+                    "error",
+                    undefined,
+                    { error: error instanceof Error ? error.message : 'Unknown error' },
+                    context
+                );
+            }
             
             return {
                 document_id: `error_${Date.now()}`,
@@ -235,11 +442,23 @@ export class PdfProcessor {
         parameters: PdfProcessingParameters, 
         analysisType: string, 
         modelId: string, 
-        context: InvocationContext
+        context: InvocationContext,
+        sessionId?: string
     ): Promise<PdfProcessingResult> {
         // Extract comprehensive results with safe property access
         const extractedText = result.content || '';
         const pageCount = result.pages?.length || 0;
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "PDF Document Intelligence Agent",
+                "Raw Results Analysis",
+                `Azure returned analysis results. Detected ${pageCount} pages with ${extractedText.length} characters of extracted text. Now processing structured data elements.`,
+                "process_pdf",
+                context
+            );
+        }
         
         // Process pages with safe property access
         const pages = result.pages?.map((page: any, index: number) => {
@@ -254,6 +473,17 @@ export class PdfProcessor {
         }) || [];
 
         // Extract tables with safe property access and default confidence
+        if (sessionId && result.tables?.length > 0) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "PDF Document Intelligence Agent",
+                "Table Structure Analysis",
+                `Found ${result.tables.length} tables in the document. Analyzing table structures, extracting cell content, and calculating confidence scores for each data cell.`,
+                "process_pdf",
+                context
+            );
+        }
+        
         const tables = result.tables?.map((table: any, index: number) => ({
             table_number: index + 1,
             row_count: table.rowCount || 0,
@@ -267,6 +497,17 @@ export class PdfProcessor {
         })) || [];
 
         // Extract key-value pairs with safe property access and default confidence
+        if (sessionId && result.keyValuePairs?.length > 0) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "PDF Document Intelligence Agent",
+                "Key-Value Pair Extraction",
+                `Identified ${result.keyValuePairs.length} key-value pairs in the document. These are structured data relationships like form fields, labels with values, and document metadata.`,
+                "process_pdf",
+                context
+            );
+        }
+        
         const keyValuePairs = result.keyValuePairs?.map((kvp: any) => ({
             key: kvp.key?.content || '',
             value: kvp.value?.content || '',
@@ -298,6 +539,17 @@ export class PdfProcessor {
         };
         
         const storageUrl = await this.storeResults(documentId, analysisResults, context);
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "PDF Document Intelligence Agent",
+                "Confidence Assessment",
+                `Calculated overall confidence score: ${Math.round(overallConfidence * 100)}%. This is based on Azure's ML model confidence in OCR accuracy, text recognition quality, and structural element detection. Higher scores indicate more reliable extraction.`,
+                "process_pdf",
+                context
+            );
+        }
 
         // Return success response
         const response: PdfProcessingResult = {

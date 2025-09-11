@@ -4,6 +4,7 @@
 import { InvocationContext } from "@azure/functions";
 import { OmnichannelAnalysisParameters, OmnichannelAnalysisResult } from "../shared/mcp-types.js";
 import { AzureClientsManager } from "../shared/azure-clients.js";
+import { TransparencyLogger } from "../shared/transparency-logger.js";
 import * as natural from "natural";
 
 interface CustomerInteraction {
@@ -26,9 +27,11 @@ interface JourneyPath {
 export class OmnichannelJourneyAnalyzer {
     private azureClients: AzureClientsManager;
     private sentimentAnalyzer: any;
+    private transparencyLogger: TransparencyLogger;
 
     constructor() {
         this.azureClients = AzureClientsManager.getInstance();
+        this.transparencyLogger = TransparencyLogger.getInstance();
         this.initializeSentimentAnalyzer();
     }
 
@@ -69,19 +72,48 @@ export class OmnichannelJourneyAnalyzer {
 
     async analyzeOmnichannelJourney(
         parameters: OmnichannelAnalysisParameters,
-        context: InvocationContext
+        context: InvocationContext,
+        sessionId?: string
     ): Promise<OmnichannelAnalysisResult> {
+        const transparencySessionId = sessionId || this.transparencyLogger.createSession();
+        
+        await this.transparencyLogger.broadcastAgentThought(
+            transparencySessionId,
+            "Omnichannel Customer Experience Agent",
+            "Journey Analysis Initialization",
+            "Starting comprehensive omnichannel customer journey analysis. Analyzing customer touchpoints, sentiment patterns, and experience optimization opportunities across all channels.",
+            "analyze_omnichannel_journey",
+            context
+        );
+        
         context.log('Omnichannel Journey Analyzer: Starting customer journey analysis');
         
         try {
             // Validate parameters
             if (!parameters.customer_interactions || parameters.customer_interactions.length === 0) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Omnichannel Customer Experience Agent",
+                    "Parameter Validation Error",
+                    "Customer interactions data is missing or empty. Cannot proceed with omnichannel journey analysis without interaction data.",
+                    undefined,
+                    context
+                );
                 throw new Error('customer_interactions parameter is required and must not be empty');
             }
 
             const interactions = parameters.customer_interactions;
             const includeSentiment = parameters.include_sentiment_analysis !== false;
             const includeJourneyMapping = parameters.include_journey_mapping !== false;
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                1,
+                6,
+                "Data Preparation & Temporal Analysis",
+                17,
+                context
+            );
 
             // Determine analysis period
             const timestamps = interactions.map(i => new Date(i.timestamp));
@@ -98,26 +130,125 @@ export class OmnichannelJourneyAnalyzer {
                 return timestamp >= startDate && timestamp <= endDate;
             });
 
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Data Scope Analysis",
+                `Analyzing ${filteredInteractions.length} customer interactions across ${new Set(filteredInteractions.map(i => i.channel)).size} channels from ${startDate.toISOString()} to ${endDate.toISOString()}. Sentiment analysis: ${includeSentiment ? 'enabled' : 'disabled'}, Journey mapping: ${includeJourneyMapping ? 'enabled' : 'disabled'}.`,
+                "prepare_data",
+                context
+            );
+
             context.log(`Analyzing ${filteredInteractions.length} interactions in period ${startDate.toISOString()} to ${endDate.toISOString()}`);
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                2,
+                6,
+                "Channel Performance Analysis",
+                33,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Channel Performance Evaluation",
+                "Conducting deep analysis of channel effectiveness, sentiment patterns, and customer satisfaction metrics. Evaluating performance across web, phone, chat, email, mobile, and in-person touchpoints.",
+                "analyze_channels",
+                context
+            );
 
             // Perform channel analysis
             const channelAnalysis = await this.analyzeChannels(filteredInteractions, includeSentiment, context);
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                3,
+                6,
+                "Customer Journey Pattern Discovery",
+                50,
+                context
+            );
+
             // Perform journey pattern analysis
             let journeyPatterns: any[] = [];
             if (includeJourneyMapping) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Omnichannel Customer Experience Agent",
+                    "Journey Pattern Analysis",
+                    "Mapping customer journey patterns to identify common paths, success rates, and friction points. Analyzing touchpoint sequences and customer flow optimization opportunities.",
+                    "analyze_journey_patterns",
+                    context
+                );
                 journeyPatterns = await this.analyzeJourneyPatterns(filteredInteractions, context);
+            } else {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "Omnichannel Customer Experience Agent",
+                    "Journey Mapping Skipped",
+                    "Journey pattern mapping disabled per configuration. Proceeding with channel analysis and customer insights generation.",
+                    undefined,
+                    context
+                );
             }
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                4,
+                6,
+                "Customer Insights & Behavioral Analysis",
+                67,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Customer Insights Generation",
+                "Generating actionable customer insights through correlation analysis. Identifying satisfaction drivers, dropout patterns, channel preferences, and peak interaction times.",
+                "generate_insights",
+                context
+            );
 
             // Generate customer insights
             const customerInsights = await this.generateCustomerInsights(filteredInteractions, journeyPatterns, context);
 
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                5,
+                6,
+                "Strategic Recommendations Generation",
+                83,
+                context
+            );
+
+            await this.transparencyLogger.broadcastDecisionPoint(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Optimization strategy selection based on analysis findings",
+                "Analyzing channel performance, journey patterns, and customer insights to generate targeted recommendations for experience optimization and operational efficiency.",
+                ['channel_optimization', 'journey_simplification', 'capacity_planning', 'proactive_engagement'],
+                0.88,
+                context
+            );
+
             // Generate recommendations
             const recommendations = this.generateRecommendations(channelAnalysis, journeyPatterns, customerInsights);
 
-            return {
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                6,
+                6,
+                "Analysis Results Compilation",
+                100,
+                context
+            );
+
+            const finalResult = {
                 analysis_id: `omnichannel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                status: 'success',
+                status: 'success' as const,
                 period: {
                     start_date: startDate.toISOString(),
                     end_date: endDate.toISOString(),
@@ -131,7 +262,52 @@ export class OmnichannelJourneyAnalyzer {
                 message: `Omnichannel journey analysis completed successfully. Analyzed ${filteredInteractions.length} interactions across ${new Set(filteredInteractions.map(i => i.channel)).size} channels.`
             };
 
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Analysis Complete",
+                `Successfully completed comprehensive omnichannel analysis. Analyzed ${filteredInteractions.length} interactions across ${new Set(filteredInteractions.map(i => i.channel)).size} channels, identified ${journeyPatterns.length} journey patterns, and generated ${recommendations.length} strategic recommendations for customer experience optimization.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                'analyze_omnichannel_journey',
+                'complete',
+                Date.now() - new Date(finalResult.processed_at).getTime(),
+                {
+                    totalInteractions: filteredInteractions.length,
+                    channelsAnalyzed: new Set(filteredInteractions.map(i => i.channel)).size,
+                    journeyPatterns: journeyPatterns.length,
+                    recommendations: recommendations.length,
+                    sentimentAnalysis: includeSentiment,
+                    journeyMapping: includeJourneyMapping
+                },
+                context
+            );
+
+            return finalResult;
+
         } catch (error) {
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "Omnichannel Customer Experience Agent",
+                "Analysis Error",
+                `Omnichannel journey analysis failed with error: ${error instanceof Error ? error.message : 'Unknown error'}. Implementing error recovery and returning diagnostic information.`,
+                undefined,
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                transparencySessionId,
+                'analyze_omnichannel_journey',
+                'error',
+                undefined,
+                { error: error instanceof Error ? error.message : 'Unknown error' },
+                context
+            );
+
             context.error('Error in omnichannel journey analysis:', error);
             
             return {

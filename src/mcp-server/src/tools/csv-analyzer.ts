@@ -7,38 +7,113 @@ import { Matrix } from "ml-matrix";
 import { CSVAnalysisParameters, CSVAnalysisResult, MCPToolResult } from "../shared/mcp-types.js";
 import { UtilitiesContextAnalyzer } from "../shared/utilities-context.js";
 import { AzureClientsManager } from "../shared/azure-clients.js";
+import { TransparencyLogger } from "../shared/transparency-logger.js";
 
 export class CSVAnalyzer {
     private azureClients: AzureClientsManager;
+    private transparencyLogger: TransparencyLogger;
 
     constructor() {
         this.azureClients = AzureClientsManager.getInstance();
+        this.transparencyLogger = TransparencyLogger.getInstance();
     }
 
     async initialize(): Promise<void> {
         await this.azureClients.initialize();
     }
 
-    async analyzeCSV(parameters: CSVAnalysisParameters, context: InvocationContext): Promise<CSVAnalysisResult> {
+    async analyzeCSV(parameters: CSVAnalysisParameters, context: InvocationContext, sessionId?: string): Promise<CSVAnalysisResult> {
         context.log('CSV Analyzer: Starting analysis with utilities context detection');
         
+        // Initialize transparency session if not provided
+        const transparencySessionId = sessionId || this.transparencyLogger.createSession();
+        
         try {
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "CSV Data Analytics Agent",
+                "Data Analysis Initialization",
+                "Starting advanced CSV analysis with statistical modeling and utilities industry context detection. Preparing to analyze data quality, perform statistical analysis, and identify industry-specific patterns.",
+                "analyze_csv",
+                context
+            );
+
             // Validate parameters
             if (!parameters.csv_data && !parameters.file_url) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "CSV Data Analytics Agent",
+                    "Parameter Validation",
+                    "Error: No CSV data source provided. Analysis requires either direct CSV data or a URL to fetch data from.",
+                    "analyze_csv",
+                    context
+                );
                 throw new Error('Either csv_data or file_url parameter is required');
             }
 
             const analysisType = parameters.analysis_type || 'comprehensive';
             
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "CSV Data Analytics Agent",
+                "Analysis Strategy Selection",
+                `Selected '${analysisType}' analysis mode. This determines the depth of statistical analysis, utilities context detection, and data quality assessment. Comprehensive mode includes advanced statistics and industry-specific insights.`,
+                "analyze_csv",
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                1,
+                6,
+                "Data Source Preparation",
+                16,
+                context
+            );
+
             // Get CSV data
             let csvContent: string;
             if (parameters.csv_data) {
                 csvContent = parameters.csv_data;
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "CSV Data Analytics Agent",
+                    "Data Source Analysis",
+                    `Processing CSV data provided directly (${csvContent.length} characters). Analyzing data structure and preparing for parsing.`,
+                    "analyze_csv",
+                    context
+                );
             } else if (parameters.file_url) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "CSV Data Analytics Agent",
+                    "Remote Data Retrieval",
+                    `Fetching CSV data from URL: ${parameters.file_url}. Validating accessibility and downloading content for analysis.`,
+                    "analyze_csv",
+                    context
+                );
                 csvContent = await this.fetchCSVFromURL(parameters.file_url);
             } else {
                 throw new Error('No CSV data provided');
             }
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                2,
+                6,
+                "CSV Parsing",
+                33,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "CSV Data Analytics Agent",
+                "Data Parsing Strategy",
+                "Parsing CSV data using PapaParse library. Applying data normalization, header detection, and field cleaning to ensure accurate analysis.",
+                "analyze_csv",
+                context
+            );
 
             // Parse CSV
             const parseResult = Papa.parse(csvContent, {
@@ -51,11 +126,37 @@ export class CSVAnalyzer {
             });
 
             if (parseResult.errors && parseResult.errors.length > 0) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "CSV Data Analytics Agent",
+                    "Parsing Error Detection",
+                    `CSV parsing encountered ${parseResult.errors.length} errors. Data quality issues detected that may affect analysis accuracy.`,
+                    "analyze_csv",
+                    context
+                );
                 throw new Error(`CSV parsing errors: ${parseResult.errors.map((e: any) => e.message).join(', ')}`);
             }
 
             const data = parseResult.data as Record<string, string>[];
             const headers = parseResult.meta?.fields || [];
+
+            await this.transparencyLogger.broadcastAgentThought(
+                transparencySessionId,
+                "CSV Data Analytics Agent",
+                "Data Structure Analysis",
+                `Successfully parsed CSV data: ${data.length} rows × ${headers.length} columns. Data structure looks valid. Columns detected: ${headers.slice(0, 5).join(', ')}${headers.length > 5 ? '...' : ''}`,
+                "analyze_csv",
+                context
+            );
+
+            await this.transparencyLogger.broadcastProcessingStep(
+                transparencySessionId,
+                3,
+                6,
+                "Statistical Analysis",
+                50,
+                context
+            );
 
             context.log(`Parsed CSV: ${data.length} rows, ${headers.length} columns`);
 
@@ -66,13 +167,35 @@ export class CSVAnalyzer {
                 csvContent.length, 
                 analysisType,
                 parameters.include_recommendations || false,
-                context
+                context,
+                transparencySessionId
             );
 
             return result;
 
         } catch (error) {
             context.error('Error in CSV analysis:', error);
+            
+            // Broadcast error to transparency system
+            if (transparencySessionId) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    transparencySessionId,
+                    "CSV Data Analytics Agent",
+                    "Analysis Error",
+                    `CSV analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}. This could be due to invalid CSV format, network issues, or data quality problems.`,
+                    "analyze_csv",
+                    context
+                );
+
+                await this.transparencyLogger.broadcastToolExecution(
+                    transparencySessionId,
+                    "analyze_csv",
+                    "error",
+                    undefined,
+                    { error: error instanceof Error ? error.message : 'Unknown error' },
+                    context
+                );
+            }
             
             return {
                 analysis_id: `error_${Date.now()}`,
@@ -109,7 +232,8 @@ export class CSVAnalyzer {
         fileSizeBytes: number,
         analysisType: string,
         includeRecommendations: boolean,
-        context: InvocationContext
+        context: InvocationContext,
+        sessionId?: string
     ): Promise<CSVAnalysisResult> {
         
         const analysisId = `csv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -122,13 +246,63 @@ export class CSVAnalyzer {
             encoding: 'utf-8'
         };
 
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                4,
+                6,
+                "Column Analysis",
+                66,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "CSV Data Analytics Agent",
+                "Column Data Type Analysis",
+                `Analyzing ${headers.length} columns to determine data types, detect missing values, and identify utilities industry patterns. Each column will be profiled for statistical characteristics.`,
+                "analyze_csv",
+                context
+            );
+        }
+
         // Column analysis
         const columnAnalysis = await this.analyzeColumns(data, headers, context);
         
         // Statistical analysis (for numerical columns)
         let statisticalSummary = undefined;
         if (analysisType === 'statistical' || analysisType === 'comprehensive') {
+            if (sessionId) {
+                await this.transparencyLogger.broadcastAgentThought(
+                    sessionId,
+                    "CSV Data Analytics Agent",
+                    "Statistical Modeling",
+                    "Performing advanced statistical analysis on numerical columns: calculating means, medians, standard deviations, quartiles, and detecting outliers using IQR method.",
+                    "analyze_csv",
+                    context
+                );
+            }
             statisticalSummary = this.performStatisticalAnalysis(data, headers, context);
+        }
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                5,
+                6,
+                "Data Quality Assessment",
+                83,
+                context
+            );
+
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "CSV Data Analytics Agent",
+                "Data Quality Evaluation",
+                "Assessing data quality metrics: completeness scores, consistency analysis, duplicate detection, and anomaly identification to ensure reliable insights.",
+                "analyze_csv",
+                context
+            );
         }
 
         // Data quality assessment
@@ -137,12 +311,62 @@ export class CSVAnalyzer {
         // Utilities context detection
         let utilitiesInsights = undefined;
         if (analysisType === 'utilities_context' || analysisType === 'comprehensive') {
+            if (sessionId) {
+                await this.transparencyLogger.broadcastDecisionPoint(
+                    sessionId,
+                    "CSV Data Analytics Agent",
+                    "Apply utilities industry context analysis",
+                    `Detected ${analysisType} analysis type, enabling specialized utilities industry pattern recognition. Scanning for energy usage, billing, customer, and regulatory compliance indicators.`,
+                    ["Skip utilities context", "Apply basic context only"],
+                    0.92,
+                    context
+                );
+            }
             utilitiesInsights = this.analyzeUtilitiesContext(headers, columnAnalysis, dataQuality);
+        }
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastProcessingStep(
+                sessionId,
+                6,
+                6,
+                "Analysis Complete",
+                100,
+                context
+            );
         }
 
         // Generate recommendations if requested
         const recommendations = includeRecommendations ? 
             UtilitiesContextAnalyzer.generateRecommendations(utilitiesInsights, dataQuality) : undefined;
+
+        if (sessionId) {
+            await this.transparencyLogger.broadcastAgentThought(
+                sessionId,
+                "CSV Data Analytics Agent",
+                "Final Results Summary",
+                `CSV analysis complete! Processed ${data.length} rows with ${dataQuality.completeness_score * 100}% data completeness, ${dataQuality.consistency_score * 100}% consistency. ${statisticalSummary ? statisticalSummary.length + ' numerical columns analyzed statistically. ' : ''}${utilitiesInsights ? 'Utilities industry context detected and analyzed.' : ''}`,
+                "analyze_csv",
+                context
+            );
+
+            await this.transparencyLogger.broadcastToolExecution(
+                sessionId,
+                "analyze_csv",
+                "complete",
+                undefined,
+                {
+                    analysisId,
+                    rows: data.length,
+                    columns: headers.length,
+                    dataQuality: {
+                        completeness: dataQuality.completeness_score,
+                        consistency: dataQuality.consistency_score
+                    }
+                },
+                context
+            );
+        }
 
         return {
             analysis_id: analysisId,
