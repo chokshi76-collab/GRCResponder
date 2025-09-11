@@ -323,6 +323,88 @@ app.http('docs', {
                             }
                         }
                     }
+                },
+                '/websocket-negotiate': {
+                    get: {
+                        summary: 'WebSocket connection negotiation for real-time transparency',
+                        parameters: [
+                            {
+                                name: 'sessionId',
+                                in: 'query',
+                                schema: { type: 'string' },
+                                description: 'Transparency session ID'
+                            },
+                            {
+                                name: 'userId',
+                                in: 'query', 
+                                schema: { type: 'string' },
+                                description: 'User ID for connection'
+                            }
+                        ],
+                        responses: {
+                            '200': {
+                                description: 'WebSocket connection information'
+                            }
+                        }
+                    }
+                },
+                '/transparency-hub': {
+                    get: {
+                        summary: 'Get transparency hub status and session information',
+                        responses: {
+                            '200': {
+                                description: 'Hub status and active sessions'
+                            }
+                        }
+                    },
+                    post: {
+                        summary: 'Create new transparency session',
+                        requestBody: {
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            userId: { type: 'string' }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            '201': {
+                                description: 'New transparency session created'
+                            }
+                        }
+                    }
+                },
+                '/transparency-broadcast': {
+                    post: {
+                        summary: 'Broadcast transparency messages in real-time',
+                        requestBody: {
+                            content: {
+                                'application/json': {
+                                    schema: {
+                                        type: 'object',
+                                        properties: {
+                                            messageType: { 
+                                                type: 'string',
+                                                enum: ['agent_thought', 'tool_execution', 'processing_step', 'decision_point', 'collaboration']
+                                            },
+                                            sessionId: { type: 'string' },
+                                            data: { type: 'object' }
+                                        },
+                                        required: ['messageType', 'sessionId', 'data']
+                                    }
+                                }
+                            }
+                        },
+                        responses: {
+                            '200': {
+                                description: 'Message broadcast successfully'
+                            }
+                        }
+                    }
                 }
             },
             components: {
@@ -371,8 +453,8 @@ app.http('tools', {
             body: JSON.stringify({
                 tools: AVAILABLE_TOOLS,
                 count: AVAILABLE_TOOLS.length,
-                service: 'Universal AI Tool Platform',
-                architecture: 'Complete MCP Implementation',
+                service: 'Universal AI Tool Platform with Real-Time Transparency',
+                architecture: 'Complete MCP Implementation + WebSocket Transparency',
                 real_tools: ['process_pdf', 'analyze_csv', 'knowledge_search', 'omnichannel_analyzer', 'compliance_analyzer'],
                 placeholder_tools: ['scrape_website'],
                 azure_integrations: 'Document Intelligence, OpenAI, AI Search, Key Vault, Cosmos DB',

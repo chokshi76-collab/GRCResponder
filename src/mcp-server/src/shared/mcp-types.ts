@@ -221,3 +221,102 @@ export interface ComplianceAnalysisResult {
     processed_at: string;
     message: string;
 }
+
+// ========================================
+// WebSocket Real-Time Transparency Types
+// ========================================
+
+export interface AgentThoughtMessage {
+    type: 'agent_thought';
+    sessionId: string;
+    agentName: string;
+    step: string;
+    thought: string;
+    timestamp: string;
+    toolCalled?: string;
+    metadata?: Record<string, any>;
+}
+
+export interface ToolExecutionMessage {
+    type: 'tool_execution';
+    sessionId: string;
+    toolName: string;
+    status: 'starting' | 'processing' | 'complete' | 'error';
+    duration?: number;
+    result?: any;
+    timestamp: string;
+    metadata?: Record<string, any>;
+}
+
+export interface ProcessingStepMessage {
+    type: 'processing_step';
+    sessionId: string;
+    currentStep: number;
+    totalSteps: number;
+    stepName: string;
+    progress: number;
+    timestamp: string;
+    metadata?: Record<string, any>;
+}
+
+export interface DecisionPointMessage {
+    type: 'decision_point';
+    sessionId: string;
+    agentName: string;
+    decision: string;
+    reasoning: string;
+    alternatives: string[];
+    confidence: number;
+    timestamp: string;
+}
+
+export interface CollaborationMessage {
+    type: 'collaboration';
+    sessionId: string;
+    fromAgent: string;
+    toAgent: string;
+    message: string;
+    collaborationType: 'request' | 'response' | 'handoff' | 'consultation';
+    timestamp: string;
+}
+
+export type TransparencyMessage = 
+    | AgentThoughtMessage 
+    | ToolExecutionMessage 
+    | ProcessingStepMessage 
+    | DecisionPointMessage 
+    | CollaborationMessage;
+
+export interface TransparencySession {
+    sessionId: string;
+    userId?: string;
+    startTime: string;
+    endTime?: string;
+    status: 'active' | 'completed' | 'error';
+    totalMessages: number;
+    agents: string[];
+    tools: string[];
+}
+
+export interface WebSocketConnectionInfo {
+    connectionId: string;
+    sessionId: string;
+    userId?: string;
+    connectedAt: string;
+    lastActivity: string;
+}
+
+// Configuration types
+export interface TransparencyConfig {
+    logLevel: 'basic' | 'detailed' | 'verbose';
+    enableAgentThoughts: boolean;
+    enableToolExecution: boolean;
+    enableProcessingSteps: boolean;
+    enableDecisionPoints: boolean;
+    enableCollaboration: boolean;
+    maxSessionDuration: number; // in minutes
+    messageThrottling: {
+        enabled: boolean;
+        maxMessagesPerSecond: number;
+    };
+}
