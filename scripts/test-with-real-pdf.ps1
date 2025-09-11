@@ -3,7 +3,7 @@
 # by providing a real, publicly accessible PDF URL.
 
 # --- Configuration ---
-$functionAppUrl = "https://pdf-ai-agent-func-dev.azurewebsites.net/api"
+$functionAppUrl = "https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api"
 $toolEndpoint = "/tools/process_pdf"
 $requestUrl = $functionAppUrl + $toolEndpoint
 
@@ -20,8 +20,11 @@ Write-Host "---"
 try {
     Write-Host "Step 1: Constructing the request body..."
     $body = @{
-        pdfUrl = $realPdfUrl
-    } | ConvertTo-Json
+        parameters = @{
+            file_path = $realPdfUrl
+            analysis_type = "text"
+        }
+    } | ConvertTo-Json -Depth 3
 
     Write-Host "Step 2: Invoking the 'process_pdf' tool..."
     # Use -TimeoutSec 300 (5 minutes) because the first analysis can be slow
