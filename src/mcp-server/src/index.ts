@@ -1,7 +1,43 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 
-// Import modular PDF processor
+// Import modular tools
 import { pdfProcessor, PdfProcessingParameters } from "./tools/pdf-processor.js";
+import { CSVAnalyzer } from "./tools/csv-analyzer.js";
+import { KnowledgeGraphSearch } from "./tools/knowledge-search.js";
+import { OmnichannelJourneyAnalyzer } from "./tools/omnichannel-analyzer.js";
+import { RegulatoryComplianceAnalyzer } from "./tools/compliance-analyzer.js";
+
+// Import shared types
+import { 
+    CSVAnalysisParameters, 
+    KnowledgeSearchParameters, 
+    OmnichannelAnalysisParameters, 
+    ComplianceAnalysisParameters 
+} from "./shared/mcp-types.js";
+
+// Initialize tool instances
+const csvAnalyzer = new CSVAnalyzer();
+const knowledgeSearch = new KnowledgeGraphSearch();
+const omnichannelAnalyzer = new OmnichannelJourneyAnalyzer();
+const complianceAnalyzer = new RegulatoryComplianceAnalyzer();
+
+// Initialize all tools on startup
+Promise.all([
+    csvAnalyzer.initialize(),
+    knowledgeSearch.initialize(), 
+    omnichannelAnalyzer.initialize(),
+    complianceAnalyzer.initialize()
+]).then(() => {
+    console.log('All MCP tools initialized successfully');
+}).catch(error => {
+    console.error('Error initializing MCP tools:', error);
+});
+
+// Helper function to determine architecture type
+function getArchitectureType(toolName: string): string {
+    const realImplementations = ['process_pdf', 'analyze_csv', 'knowledge_search', 'omnichannel_analyzer', 'compliance_analyzer'];
+    return realImplementations.includes(toolName) ? 'modular_azure_ai' : 'placeholder';
+}
 
 // Define the tools that our Universal AI API supports
 const AVAILABLE_TOOLS = [
@@ -26,28 +62,29 @@ const AVAILABLE_TOOLS = [
     },
     {
         name: "analyze_csv",
-        description: "Analyze CSV data and store results in SQL database with intelligent data profiling",
+        description: "Advanced CSV analyzer with statistical analysis, data quality assessment, and utilities industry context detection",
         parameters: {
             type: "object",
             properties: {
-                file_path: {
+                csv_data: {
                     type: "string",
-                    description: "Path to the CSV file to analyze"
+                    description: "CSV content as string"
                 },
-                table_name: {
+                file_url: {
+                    type: "string", 
+                    description: "URL to CSV file"
+                },
+                analysis_type: {
                     type: "string",
-                    description: "Name for the database table to store results"
+                    enum: ["basic", "statistical", "utilities_context", "comprehensive"],
+                    description: "Type of analysis to perform"
                 },
-                analysis_options: {
-                    type: "array",
-                    items: {
-                        type: "string",
-                        enum: ["statistics", "data_quality", "patterns", "outliers"]
-                    },
-                    description: "Types of analysis to perform"
+                include_recommendations: {
+                    type: "boolean",
+                    description: "Whether to include actionable recommendations"
                 }
             },
-            required: ["file_path", "table_name"]
+            required: []
         }
     },
     {
@@ -79,8 +116,8 @@ const AVAILABLE_TOOLS = [
         }
     },
     {
-        name: "search_documents",
-        description: "Search documents using Azure AI Search with vector similarity and semantic search",
+        name: "knowledge_search",
+        description: "Semantic knowledge graph search using Azure OpenAI embeddings with relationship mapping and cross-document associations",
         parameters: {
             type: "object",
             properties: {
@@ -88,46 +125,116 @@ const AVAILABLE_TOOLS = [
                     type: "string",
                     description: "Search query text"
                 },
-                filters: {
-                    type: "object",
-                    description: "Search filters to apply"
-                },
-                top_k: {
-                    type: "integer",
-                    minimum: 1,
-                    maximum: 100,
-                    description: "Number of results to return"
-                },
                 search_type: {
                     type: "string",
-                    enum: ["vector", "text", "hybrid"],
+                    enum: ["semantic", "keyword", "hybrid"],
                     description: "Type of search to perform"
+                },
+                max_results: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 50,
+                    description: "Maximum number of results to return"
+                },
+                similarity_threshold: {
+                    type: "number",
+                    minimum: 0,
+                    maximum: 1,
+                    description: "Minimum similarity score for results"
+                },
+                document_types: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Filter by document types"
+                },
+                include_metadata: {
+                    type: "boolean",
+                    description: "Include document metadata in results"
                 }
             },
             required: ["query"]
         }
     },
     {
-        name: "query_csv_data",
-        description: "Query CSV data stored in SQL database using natural language",
+        name: "omnichannel_analyzer",
+        description: "Analyze customer journey across multiple channels with pattern recognition and sentiment analysis",
         parameters: {
             type: "object",
             properties: {
-                table_name: {
-                    type: "string",
-                    description: "Name of the database table to query"
+                customer_interactions: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            customer_id: { type: "string" },
+                            channel: { 
+                                type: "string",
+                                enum: ["web", "phone", "chat", "email", "mobile", "in_person"]
+                            },
+                            interaction_type: { type: "string" },
+                            timestamp: { type: "string", format: "date-time" },
+                            sentiment: { 
+                                type: "string",
+                                enum: ["positive", "neutral", "negative"] 
+                            },
+                            outcome: { type: "string" },
+                            metadata: { type: "object" }
+                        },
+                        required: ["customer_id", "channel", "interaction_type", "timestamp"]
+                    },
+                    description: "Array of customer interaction records"
                 },
-                query: {
-                    type: "string",
-                    description: "Natural language query or SQL query"
+                analysis_period: {
+                    type: "object",
+                    properties: {
+                        start_date: { type: "string", format: "date-time" },
+                        end_date: { type: "string", format: "date-time" }
+                    },
+                    description: "Analysis time period"
                 },
-                query_type: {
-                    type: "string",
-                    enum: ["natural_language", "sql"],
-                    description: "Type of query being provided"
+                include_journey_mapping: {
+                    type: "boolean",
+                    description: "Include customer journey pattern analysis"
+                },
+                include_sentiment_analysis: {
+                    type: "boolean", 
+                    description: "Include sentiment analysis of interactions"
                 }
             },
-            required: ["table_name", "query"]
+            required: ["customer_interactions"]
+        }
+    },
+    {
+        name: "compliance_analyzer",
+        description: "Regulatory compliance analyzer for utilities industry including NERC CIP, EPA, and state utility regulations",
+        parameters: {
+            type: "object",
+            properties: {
+                compliance_domain: {
+                    type: "string",
+                    enum: ["nerc_cip", "epa_environmental", "state_utility", "comprehensive"],
+                    description: "Compliance domain to analyze"
+                },
+                document_content: {
+                    type: "string",
+                    description: "Document content to analyze for compliance"
+                },
+                document_url: {
+                    type: "string",
+                    format: "uri",
+                    description: "URL to document for compliance analysis"
+                },
+                audit_scope: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Specific areas to focus audit on"
+                },
+                include_remediation: {
+                    type: "boolean",
+                    description: "Include remediation recommendations"
+                }
+            },
+            required: []
         }
     }
 ];
@@ -264,10 +371,11 @@ app.http('tools', {
             body: JSON.stringify({
                 tools: AVAILABLE_TOOLS,
                 count: AVAILABLE_TOOLS.length,
-                service: 'PDF AI Agent Universal API',
-                architecture: 'Modular Design',
-                pdf_processing: 'Azure Document Intelligence (Real AI)',
-                other_tools: 'Placeholder (to be modularized)',
+                service: 'Universal AI Tool Platform',
+                architecture: 'Complete MCP Implementation',
+                real_tools: ['process_pdf', 'analyze_csv', 'knowledge_search', 'omnichannel_analyzer', 'compliance_analyzer'],
+                placeholder_tools: ['scrape_website'],
+                azure_integrations: 'Document Intelligence, OpenAI, AI Search, Key Vault, Cosmos DB',
                 timestamp: new Date().toISOString()
             })
         };
@@ -329,16 +437,24 @@ app.http('execute-tool', {
                     result = await pdfProcessor.processPdf(parameters as PdfProcessingParameters, context);
                     break;
                 case 'analyze_csv':
-                    result = await analyzeCsv(parameters, context);
+                    context.log('Using advanced CSV analyzer with utilities context');
+                    result = await csvAnalyzer.analyzeCSV(parameters as CSVAnalysisParameters, context);
                     break;
                 case 'scrape_website':
-                    result = await scrapeWebsite(parameters, context);
+                    context.log('Using web scraper - placeholder implementation');
+                    result = { message: 'Web scraping functionality - placeholder implementation', status: 'placeholder' };
                     break;
-                case 'search_documents':
-                    result = await searchDocuments(parameters, context);
+                case 'knowledge_search':
+                    context.log('Using knowledge graph search with Azure OpenAI embeddings');
+                    result = await knowledgeSearch.searchKnowledge(parameters as KnowledgeSearchParameters, context);
                     break;
-                case 'query_csv_data':
-                    result = await queryCsvData(parameters, context);
+                case 'omnichannel_analyzer':
+                    context.log('Using omnichannel journey analyzer');
+                    result = await omnichannelAnalyzer.analyzeOmnichannelJourney(parameters as OmnichannelAnalysisParameters, context);
+                    break;
+                case 'compliance_analyzer':
+                    context.log('Using regulatory compliance analyzer');
+                    result = await complianceAnalyzer.analyzeCompliance(parameters as ComplianceAnalysisParameters, context);
                     break;
                 default:
                     throw new Error(`Tool ${toolName} not implemented`);
@@ -354,7 +470,7 @@ app.http('execute-tool', {
                     result: result,
                     timestamp: new Date().toISOString(),
                     status: 'success',
-                    architecture: toolName === 'process_pdf' ? 'modular_azure_ai' : 'placeholder'
+                    architecture: getArchitectureType(toolName)
                 })
             };
 
