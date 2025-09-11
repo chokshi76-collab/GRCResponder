@@ -41,10 +41,9 @@ export class CSVAnalyzer {
             }
 
             // Parse CSV
-            const parseResult = Papa.parse<Record<string, string>>(csvContent, {
+            const parseResult = Papa.parse(csvContent, {
                 header: true,
                 skipEmptyLines: true,
-                trimHeaders: true,
                 transform: (value: string) => {
                     // Clean and normalize values
                     return value.trim();
