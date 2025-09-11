@@ -41,22 +41,22 @@ export class CSVAnalyzer {
             }
 
             // Parse CSV
-            const parseResult = Papa.parse(csvContent, {
+            const parseResult = Papa.parse<Record<string, string>>(csvContent, {
                 header: true,
                 skipEmptyLines: true,
                 trimHeaders: true,
-                transform: (value, header) => {
+                transform: (value: string) => {
                     // Clean and normalize values
                     return value.trim();
                 }
             });
 
-            if (parseResult.errors.length > 0) {
-                throw new Error(`CSV parsing errors: ${parseResult.errors.map(e => e.message).join(', ')}`);
+            if (parseResult.errors && parseResult.errors.length > 0) {
+                throw new Error(`CSV parsing errors: ${parseResult.errors.map((e: any) => e.message).join(', ')}`);
             }
 
-            const data = parseResult.data as any[];
-            const headers = parseResult.meta.fields || [];
+            const data = parseResult.data as Record<string, string>[];
+            const headers = parseResult.meta?.fields || [];
 
             context.log(`Parsed CSV: ${data.length} rows, ${headers.length} columns`);
 

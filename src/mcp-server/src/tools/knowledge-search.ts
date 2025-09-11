@@ -2,12 +2,12 @@
 // Tool #3: Knowledge Graph Search with Azure OpenAI Embeddings and Semantic Search
 
 import { InvocationContext } from "@azure/functions";
-import { SearchClient, SearchDocument } from "@azure/search-documents";
+import { SearchClient } from "@azure/search-documents";
 import { OpenAIClient } from "@azure/openai";
 import { KnowledgeSearchParameters, KnowledgeSearchResult } from "../shared/mcp-types.js";
 import { AzureClientsManager } from "../shared/azure-clients.js";
 
-interface DocumentRecord extends SearchDocument {
+interface DocumentRecord {
     id: string;
     title: string;
     content: string;
@@ -180,7 +180,7 @@ export class KnowledgeGraphSearch {
                 fields: "embedding",
                 k: maxResults
             }],
-            select: ["id", "title", "content", "document_type", "metadata", "relationships"],
+            select: ["id", "title", "content", "document_type", "metadata", "relationships"] as any,
             top: maxResults
         };
 
@@ -226,7 +226,7 @@ export class KnowledgeGraphSearch {
 
         const searchOptions: any = {
             searchFields: ["title", "content"],
-            select: ["id", "title", "content", "document_type", "metadata", "relationships"],
+            select: ["id", "title", "content", "document_type", "metadata", "relationships"] as any,
             top: maxResults,
             queryType: "simple"
         };
@@ -367,7 +367,7 @@ export class KnowledgeGraphSearch {
             // Simple approach: search for documents with similar metadata or content
             const searchOptions = {
                 filter: `id ne '${documentId}'`,
-                select: ["id", "title", "document_type"],
+                select: ["id", "title", "document_type"] as any,
                 top: maxRelated
             };
 

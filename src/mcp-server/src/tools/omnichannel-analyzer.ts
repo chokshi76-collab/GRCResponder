@@ -41,11 +41,21 @@ export class OmnichannelJourneyAnalyzer {
         try {
             this.sentimentAnalyzer = {
                 analyze: (text: string) => {
-                    const score = natural.SentimentAnalyzer.analyze(
-                        natural.WordTokenizer.tokenize(text.toLowerCase())
-                    );
-                    if (score > 0.1) return 'positive';
-                    if (score < -0.1) return 'negative';
+                    // Simple sentiment analysis using basic keyword matching
+                    const lowerText = text.toLowerCase();
+                    const positiveWords = ['good', 'great', 'excellent', 'satisfied', 'happy', 'resolved', 'helpful'];
+                    const negativeWords = ['bad', 'terrible', 'awful', 'unsatisfied', 'angry', 'failed', 'frustrated'];
+                    
+                    let score = 0;
+                    positiveWords.forEach(word => {
+                        if (lowerText.includes(word)) score += 1;
+                    });
+                    negativeWords.forEach(word => {
+                        if (lowerText.includes(word)) score -= 1;
+                    });
+                    
+                    if (score > 0) return 'positive';
+                    if (score < 0) return 'negative';
                     return 'neutral';
                 }
             };
