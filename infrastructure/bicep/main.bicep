@@ -272,7 +272,8 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
-// Outputs
+// Outputs 
+// Trigger deployment to test Function App fix
 output keyVaultName string = keyVault.name
 output documentIntelligenceName string = documentIntelligence.name
 output searchServiceName string = searchService.name
