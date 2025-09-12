@@ -1,0 +1,42 @@
+{
+  "routes": [
+    {
+      "route": "/",
+      "serve": "/enhanced-transparency-demo.html"
+    },
+    {
+      "route": "/demo",
+      "serve": "/enhanced-transparency-demo.html"
+    },
+    {
+      "route": "/transparency",
+      "serve": "/enhanced-transparency-demo.html"
+    },
+    {
+      "route": "/original",
+      "serve": "/transparency-demo.html"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/enhanced-transparency-demo.html",
+    "exclude": ["/api/*", "/*.{css,scss,js,png,gif,ico,jpg,svg}"]
+  },
+  "responseOverrides": {
+    "404": {
+      "rewrite": "/enhanced-transparency-demo.html"
+    }
+  },
+  "mimeTypes": {
+    ".html": "text/html",
+    ".css": "text/css",
+    ".js": "application/javascript",
+    ".json": "application/json"
+  },
+  "globalHeaders": {
+    "Cache-Control": "public, max-age=604800",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}

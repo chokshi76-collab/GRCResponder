@@ -1,0 +1,105 @@
+name: Deploy Frontend to Azure Static Web Apps
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - 'demo/**'
+      - 'infrastructure/bicep/static-web-app.bicep'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+
+env:
+  AZURE_SUBSCRIPTION_ID: d4d5edc0-d0d0-491c-8d55-4bf5481b5b49
+
+jobs:
+  deploy-static-web-app-infrastructure:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set Environment Variables
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || 'dev' }}"
+        echo "ENVIRONMENT_NAME=$ENV_NAME" >> $GITHUB_ENV
+        echo "RESOURCE_GROUP_NAME=pdf-ai-agent-rg-$ENV_NAME" >> $GITHUB_ENV
+        echo "LOCATION=westus2" >> $GITHUB_ENV
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Deploy Static Web App Infrastructure
+      run: |
+        # Deploy the Static Web App infrastructure using Bicep
+        echo "Deploying Static Web App infrastructure..."
+        az deployment group create \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --template-file infrastructure/bicep/static-web-app.bicep \
+          --parameters environmentName=${{ env.ENVIRONMENT_NAME }} \
+          --parameters repositoryUrl="https://github.com/${{ github.repository }}" \
+          --parameters repositoryToken="${{ secrets.GITHUB_TOKEN }}" \
+          --mode Incremental \
+          --name "frontend-$(date +%Y%m%d-%H%M%S)"
+    
+    - name: Get Deployment Outputs
+      id: outputs
+      run: |
+        # Get the latest deployment name
+        DEPLOYMENT_NAME=$(az deployment group list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query "[?contains(name, 'frontend')][0].name" -o tsv)
+        echo "Latest deployment: $DEPLOYMENT_NAME"
+        
+        # Get Static Web App details
+        STATIC_WEB_APP_NAME=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.staticWebAppName.value' -o tsv 2>/dev/null || echo '')
+        
+        STATIC_WEB_APP_URL=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.staticWebAppUrl.value' -o tsv 2>/dev/null || echo '')
+        
+        echo "Static Web App: $STATIC_WEB_APP_NAME"
+        echo "URL: https://$STATIC_WEB_APP_URL"
+        
+        echo "staticWebAppName=$STATIC_WEB_APP_NAME" >> $GITHUB_OUTPUT
+        echo "staticWebAppUrl=https://$STATIC_WEB_APP_URL" >> $GITHUB_OUTPUT
+
+  deploy-frontend-content:
+    runs-on: ubuntu-latest
+    needs: deploy-static-web-app-infrastructure
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Build and Deploy Frontend
+      id: builddeploy
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        action: "upload"
+        app_location: "/demo" # App source code path
+        output_location: "" # Built app content directory - leave empty for static HTML
+        
+    - name: Update Frontend URLs
+      run: |
+        echo "Frontend deployment completed successfully!"
+        echo "Frontend URL: https://${{ needs.deploy-static-web-app-infrastructure.outputs.staticWebAppUrl }}"
+        echo "Demo Interface: https://${{ needs.deploy-static-web-app-infrastructure.outputs.staticWebAppUrl }}/enhanced-transparency-demo.html"
+        
+        # Update the demo file to ensure it uses the correct backend API URL
+        echo "Backend API: https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api"

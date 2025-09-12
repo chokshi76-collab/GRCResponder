@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal AI Tool Platform - Live Demo</title>
+    <script src="https://unpkg.com/@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #28a745;
+        }
+
+        .api-info {
+            font-size: 0.9em;
+            color: #6c757d;
+            font-family: monospace;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr 350px;
+            gap: 20px;
+            padding: 20px;
+            min-height: 700px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #dee2e6;
+        }
+
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .file-upload-section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            border: 2px dashed #3498db;
+        }
+
+        .upload-area {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .scenario-selector {
+            margin-bottom: 20px;
+        }
+
+        .scenario-btn {
+            background: #95a5a6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-btn.active {
+            background: #e74c3c;
+        }
+
+        .scenario-btn:hover {
+            background: #7f8c8d;
+        }
+
+        .agent-thoughts {
+            max-height: 500px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .thought-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            background: #f1f2f6;
+            border-radius: 0 8px 8px 0;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .thought-item.tool-execution {
+            border-left-color: #e74c3c;
+        }
+
+        .thought-item.decision-point {
+            border-left-color: #f39c12;
+        }
+
+        .thought-item.collaboration {
+            border-left-color: #9b59b6;
+        }
+
+        .thought-item.processing {
+            border-left-color: #27ae60;
+        }
+
+        .thought-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .agent-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+
+        .thought-content {
+            color: #34495e;
+            line-height: 1.4;
+        }
+
+        .api-response {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+            margin-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .tools-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .tool-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+
+        .tool-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .tool-desc {
+            font-size: 0.8em;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+
+        .tool-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .tool-status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .tool-status.processing {
+            background: #fff3cd;
+            color: #856404;
+            animation: pulse 1s infinite;
+        }
+
+        .tool-status.complete {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .tool-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .demo-controls {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.success {
+            background: #27ae60;
+        }
+
+        .btn.success:hover {
+            background: #2ecc71;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Universal AI Tool Platform</h1>
+            <p>Real-time transparent AI orchestration with live MCP backend integration</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="connection-status">
+                <div class="status-indicator" id="connectionStatus"></div>
+                <span id="connectionText">Checking API...</span>
+            </div>
+            <div class="api-info">
+                Backend: <span id="apiUrl">https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api</span>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <!-- Left Panel: File Upload & Processing -->
+            <div class="panel">
+                <h2>📄 Document Processing</h2>
+                
+                <div class="file-upload-section">
+                    <div class="upload-area">
+                        <p>📁 Upload documents for AI processing</p>
+                        <input type="file" id="fileInput" class="file-input" accept=".pdf,.csv" multiple>
+                        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                            Choose Files
+                        </button>
+                        <button class="upload-btn" id="processBtn" onclick="processFile()" disabled>
+                            🚀 Process File
+                        </button>
+                    </div>
+                    <div id="fileInfo"></div>
+                </div>
+
+                <div class="scenario-selector">
+                    <h3>🎯 Scenario Selection:</h3>
+                    <button class="scenario-btn active" data-scenario="compliance" onclick="selectScenario('compliance')">
+                        Compliance Analysis
+                    </button>
+                    <button class="scenario-btn" data-scenario="financial" onclick="selectScenario('financial')">
+                        Financial Processing
+                    </button>
+                    <button class="scenario-btn" data-scenario="operations" onclick="selectScenario('operations')">
+                        Operations Data
+                    </button>
+                    <button class="scenario-btn" data-scenario="customer" onclick="selectScenario('customer')">
+                        Customer Journey
+                    </button>
+                </div>
+
+                <div class="agent-thoughts" id="thoughtsContainer">
+                    <div class="thought-item">
+                        <div class="thought-header">
+                            <span class="agent-name">System</span>
+                            <span class="timestamp">Ready</span>
+                        </div>
+                        <div class="thought-content">
+                            🎯 Universal AI Tool Platform ready. Upload a file to see transparent AI orchestration in action.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Panel: Real-time Agent Thoughts -->
+            <div class="panel">
+                <h2>🧠 Agent Transparency</h2>
+                <div class="agent-thoughts" id="liveThoughtsContainer">
+                    <div class="thought-item">
+                        <div class="thought-header">
+                            <span class="agent-name">AI Orchestrator</span>
+                            <span class="timestamp">Waiting...</span>
+                        </div>
+                        <div class="thought-content">
+                            Ready to demonstrate real-time AI thinking and decision-making process.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: System Overview & Tools -->
+            <div class="panel">
+                <h2>📊 System Status</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="apiCalls">0</div>
+                        <div class="metric-label">API Calls</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="activeTools">6</div>
+                        <div class="metric-label">Active Tools</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 20px; margin-bottom: 15px; color: #2c3e50;">🛠️ MCP Tools</h3>
+                <div class="tools-panel" id="toolsContainer">
+                    <!-- Tools will be loaded dynamically -->
+                </div>
+
+                <div class="demo-controls">
+                    <button class="btn" onclick="testHealthCheck()">
+                        🏥 Health Check
+                    </button>
+                    <button class="btn" onclick="loadTools()">
+                        🔄 Refresh Tools
+                    </button>
+                    <button class="btn" onclick="clearLogs()">
+                        🗑️ Clear Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🔒 Enterprise-Ready AI Transparency Platform | Powered by Azure Functions & MCP Tools</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'https://func-pdfai-dev-tjqwgu4v.azurewebsites.net/api';
+        let selectedScenario = 'compliance';
+        let apiCallCount = 0;
+        let currentFile = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            await testAPIConnection();
+            await loadTools();
+            setupFileUpload();
+        });
+
+        // API Connection Test
+        async function testAPIConnection() {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusIndicator.classList.add('connected');
+                    statusText.textContent = `Connected - ${data.service}`;
+                    addThought('system', 'API Connection', `✅ Connected to backend API: ${data.service} v${data.version}`);
+                } else {
+                    throw new Error('API returned error status');
+                }
+            } catch (error) {
+                statusIndicator.classList.remove('connected');
+                statusText.textContent = 'API Connection Failed';
+                addThought('system', 'API Connection', `❌ Failed to connect to backend API: ${error.message}`, 'error');
+            }
+        }
+
+        // Load MCP Tools
+        async function loadTools() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/tools`);
+                const data = await response.json();
+                
+                if (response.ok && data.tools) {
+                    renderTools(data.tools);
+                    document.getElementById('activeTools').textContent = data.tools.length;
+                    addThought('system', 'Tools Loaded', `🛠️ Loaded ${data.tools.length} MCP tools successfully`);
+                } else {
+                    throw new Error('Failed to load tools');
+                }
+            } catch (error) {
+                addThought('system', 'Tools Error', `❌ Failed to load MCP tools: ${error.message}`, 'error');
+            }
+        }
+
+        // Render Tools Panel
+        function renderTools(tools) {
+            const container = document.getElementById('toolsContainer');
+            container.innerHTML = '';
+            
+            tools.forEach(tool => {
+                const toolElement = document.createElement('div');
+                toolElement.className = 'tool-item';
+                toolElement.innerHTML = `
+                    <div>
+                        <div class="tool-name">${tool.name.replace(/_/g, ' ').toUpperCase()}</div>
+                        <div class="tool-desc">${tool.description.substring(0, 60)}...</div>
+                    </div>
+                    <span class="tool-status ready">Ready</span>
+                `;
+                container.appendChild(toolElement);
+            });
+        }
+
+        // File Upload Setup
+        function setupFileUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const processBtn = document.getElementById('processBtn');
+            const fileInfo = document.getElementById('fileInfo');
+            
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    currentFile = file;
+                    processBtn.disabled = false;
+                    fileInfo.innerHTML = `
+                        <div class="success-message">
+                            📄 Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)
+                        </div>
+                    `;
+                    addThought('user', 'File Selected', `📎 Selected ${file.name} for processing`);
+                }
+            });
+        }
+
+        // Process File
+        async function processFile() {
+            if (!currentFile) return;
+            
+            addThought('orchestrator', 'Processing Started', `🚀 Starting ${selectedScenario} analysis for ${currentFile.name}`);
+            
+            // Simulate AI thinking process
+            addLiveThought('orchestrator', 'Decision Making', `🤔 Analyzing file type: ${currentFile.type}`);
+            await sleep(1000);
+            
+            addLiveThought('orchestrator', 'Tool Selection', `🎯 Selected ${selectedScenario} processing pipeline`);
+            await sleep(1000);
+            
+            if (currentFile.name.toLowerCase().endsWith('.pdf')) {
+                await processPDF();
+            } else if (currentFile.name.toLowerCase().endsWith('.csv')) {
+                await processCSV();
+            } else {
+                addThought('error', 'File Type Error', '❌ Unsupported file type. Please upload PDF or CSV files.', 'error');
+            }
+        }
+
+        // Process PDF
+        async function processPDF() {
+            updateToolStatus('process_pdf', 'processing');
+            addLiveThought('pdf-agent', 'Tool Execution', '📄 Initializing PDF processor...');
+            
+            try {
+                // Convert file to base64
+                const base64 = await fileToBase64(currentFile);
+                addLiveThought('pdf-agent', 'Data Conversion', '🔄 Converting PDF to base64 for API transmission');
+                
+                await sleep(1500);
+                
+                // Call PDF processing API
+                const payload = {
+                    file_path: base64,
+                    analysis_type: 'comprehensive'
+                };
+                
+                addLiveThought('pdf-agent', 'API Call', '📡 Sending PDF to Azure Document Intelligence...');
+                
+                const response = await fetch(`${API_BASE_URL}/tools/process_pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                apiCallCount++;
+                document.getElementById('apiCalls').textContent = apiCallCount;
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    updateToolStatus('process_pdf', 'complete');
+                    addThought('pdf-agent', 'Processing Complete', '✅ PDF analysis completed successfully');
+                    
+                    addLiveThought('pdf-agent', 'Results Analysis', `📊 Extracted ${JSON.stringify(result).length} characters of structured data`);
+                    
+                    // Show API response
+                    addThought('api-response', 'PDF API Response', '', 'processing', JSON.stringify(result, null, 2));
+                    
+                    // Trigger compliance analysis based on scenario
+                    if (selectedScenario === 'compliance') {
+                        await sleep(1000);
+                        await triggerComplianceAnalysis(result);
+                    }
+                } else {
+                    throw new Error(result.message || 'PDF processing failed');
+                }
+                
+            } catch (error) {
+                updateToolStatus('process_pdf', 'error');
+                addThought('pdf-agent', 'Processing Failed', `❌ PDF processing error: ${error.message}`, 'error');
+            }
+        }
+
+        // Process CSV
+        async function processCSV() {
+            updateToolStatus('analyze_csv', 'processing');
+            addLiveThought('csv-agent', 'Tool Execution', '📊 Initializing CSV analyzer...');
+            
+            try {
+                const csvContent = await fileToText(currentFile);
+                addLiveThought('csv-agent', 'Data Loading', `🔢 Loaded CSV with ${csvContent.split('\n').length} rows`);
+                
+                await sleep(1500);
+                
+                const payload = {
+                    csv_data: csvContent,
+                    analysis_type: 'comprehensive',
+                    include_recommendations: true
+                };
+                
+                addLiveThought('csv-agent', 'Statistical Analysis', '📈 Performing statistical analysis and data quality assessment...');
+                
+                const response = await fetch(`${API_BASE_URL}/tools/analyze_csv`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                apiCallCount++;
+                document.getElementById('apiCalls').textContent = apiCallCount;
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    updateToolStatus('analyze_csv', 'complete');
+                    addThought('csv-agent', 'Analysis Complete', '✅ CSV analysis completed with insights');
+                    
+                    addLiveThought('csv-agent', 'Insights Generated', '💡 Generated actionable insights and recommendations');
+                    
+                    // Show API response
+                    addThought('api-response', 'CSV API Response', '', 'processing', JSON.stringify(result, null, 2));
+                } else {
+                    throw new Error(result.message || 'CSV analysis failed');
+                }
+                
+            } catch (error) {
+                updateToolStatus('analyze_csv', 'error');
+                addThought('csv-agent', 'Analysis Failed', `❌ CSV analysis error: ${error.message}`, 'error');
+            }
+        }
+
+        // Trigger Compliance Analysis
+        async function triggerComplianceAnalysis(pdfResult) {
+            updateToolStatus('compliance_analyzer', 'processing');
+            addLiveThought('compliance-agent', 'Compliance Check', '⚖️ Initiating regulatory compliance analysis...');
+            
+            try {
+                const payload = {
+                    compliance_domain: 'comprehensive',
+                    document_content: JSON.stringify(pdfResult),
+                    include_remediation: true
+                };
+                
+                addLiveThought('compliance-agent', 'Regulatory Scan', '🔍 Scanning for NERC CIP, EPA, and state utility regulations...');
+                
+                const response = await fetch(`${API_BASE_URL}/tools/compliance_analyzer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                apiCallCount++;
+                document.getElementById('apiCalls').textContent = apiCallCount;
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    updateToolStatus('compliance_analyzer', 'complete');
+                    addLiveThought('compliance-agent', 'Compliance Complete', '✅ Compliance analysis completed with recommendations');
+                    
+                    // Show API response
+                    addThought('api-response', 'Compliance API Response', '', 'processing', JSON.stringify(result, null, 2));
+                } else {
+                    throw new Error(result.message || 'Compliance analysis failed');
+                }
+                
+            } catch (error) {
+                updateToolStatus('compliance_analyzer', 'error');
+                addThought('compliance-agent', 'Compliance Failed', `❌ Compliance analysis error: ${error.message}`, 'error');
+            }
+        }
+
+        // Scenario Selection
+        function selectScenario(scenario) {
+            selectedScenario = scenario;
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.scenario === scenario);
+            });
+            
+            addThought('user', 'Scenario Changed', `🎯 Switched to ${scenario.charAt(0).toUpperCase() + scenario.slice(1)} scenario`);
+        }
+
+        // Health Check
+        async function testHealthCheck() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                const data = await response.json();
+                
+                apiCallCount++;
+                document.getElementById('apiCalls').textContent = apiCallCount;
+                
+                if (response.ok) {
+                    addThought('system', 'Health Check', `✅ System healthy - ${data.service} v${data.version}`, 'processing');
+                } else {
+                    addThought('system', 'Health Check', '❌ System health check failed', 'error');
+                }
+            } catch (error) {
+                addThought('system', 'Health Check', `❌ Health check error: ${error.message}`, 'error');
+            }
+        }
+
+        // Utility Functions
+        function addThought(agent, title, content, type = 'processing', apiResponse = null) {
+            const container = document.getElementById('thoughtsContainer');
+            const thoughtItem = document.createElement('div');
+            thoughtItem.className = `thought-item ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            
+            thoughtItem.innerHTML = `
+                <div class="thought-header">
+                    <span class="agent-name">${agent}</span>
+                    <span class="timestamp">${timestamp}</span>
+                </div>
+                <div class="thought-content">
+                    <strong>${title}:</strong> ${content}
+                    ${apiResponse ? `<div class="api-response">${apiResponse}</div>` : ''}
+                </div>
+            `;
+            
+            container.appendChild(thoughtItem);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function addLiveThought(agent, title, content, type = 'processing') {
+            const container = document.getElementById('liveThoughtsContainer');
+            const thoughtItem = document.createElement('div');
+            thoughtItem.className = `thought-item ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            
+            thoughtItem.innerHTML = `
+                <div class="thought-header">
+                    <span class="agent-name">${agent}</span>
+                    <span class="timestamp">${timestamp}</span>
+                </div>
+                <div class="thought-content">
+                    <strong>${title}:</strong> ${content}
+                </div>
+            `;
+            
+            container.appendChild(thoughtItem);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateToolStatus(toolName, status) {
+            const toolItems = document.querySelectorAll('.tool-item');
+            toolItems.forEach(item => {
+                const nameElement = item.querySelector('.tool-name');
+                if (nameElement && nameElement.textContent.toLowerCase().includes(toolName.replace('_', ' '))) {
+                    const statusElement = item.querySelector('.tool-status');
+                    statusElement.className = `tool-status ${status}`;
+                    statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                }
+            });
+        }
+
+        function clearLogs() {
+            document.getElementById('thoughtsContainer').innerHTML = `
+                <div class="thought-item">
+                    <div class="thought-header">
+                        <span class="agent-name">System</span>
+                        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="thought-content">
+                        🗑️ Logs cleared. Ready for new processing session.
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('liveThoughtsContainer').innerHTML = `
+                <div class="thought-item">
+                    <div class="thought-header">
+                        <span class="agent-name">AI Orchestrator</span>
+                        <span class="timestamp">Ready</span>
+                    </div>
+                    <div class="thought-content">
+                        Ready for next transparent AI demonstration.
+                    </div>
+                </div>
+            `;
+        }
+
+        // File conversion utilities
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function fileToText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsText(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

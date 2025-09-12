@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Transparency - Real-Time Agent Monitoring</title>
+    <script src="https://unpkg.com/@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #28a745;
+        }
+
+        .session-info {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+            min-height: 600px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #dee2e6;
+        }
+
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .agent-thoughts {
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .thought-item {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-left: 4px solid #3498db;
+            background: #f1f2f6;
+            border-radius: 0 8px 8px 0;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .thought-item.tool-execution {
+            border-left-color: #e74c3c;
+        }
+
+        .thought-item.decision-point {
+            border-left-color: #f39c12;
+        }
+
+        .thought-item.collaboration {
+            border-left-color: #9b59b6;
+        }
+
+        .thought-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .agent-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #7f8c8d;
+        }
+
+        .thought-content {
+            color: #34495e;
+            line-height: 1.4;
+        }
+
+        .system-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+        }
+
+        .active-tools {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .tool-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+
+        .tool-status {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .tool-status.processing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .tool-status.complete {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .tool-status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .demo-controls {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .footer {
+            background: #2c3e50;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Transparency Dashboard</h1>
+            <p>Real-time monitoring of AI agent thoughts, decisions, and tool execution</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="connection-status">
+                <div class="status-indicator" id="connectionStatus"></div>
+                <span id="connectionText">Disconnected</span>
+            </div>
+            <div class="session-info">
+                Session ID: <span id="sessionId">Not started</span> | 
+                Active since: <span id="sessionStart">--:--</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <h2>🧠 Agent Thoughts & Activities</h2>
+                <div class="agent-thoughts" id="thoughtsContainer">
+                    <div class="thought-item">
+                        <div class="thought-header">
+                            <span class="agent-name">System</span>
+                            <span class="timestamp">Waiting for connection...</span>
+                        </div>
+                        <div class="thought-content">
+                            Ready to monitor AI agent transparency in real-time. 
+                            Click "Start Demo" to begin simulation.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>📊 System Overview</h2>
+                <div class="system-overview">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalMessages">0</div>
+                        <div class="metric-label">Messages</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="activeAgents">0</div>
+                        <div class="metric-label">Agents</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="activeTools">0</div>
+                        <div class="metric-label">Tools</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 20px; margin-bottom: 10px; color: #2c3e50;">Active Tools</h3>
+                <div class="active-tools" id="toolsContainer">
+                    <div class="tool-item">
+                        <span>PDF Processor</span>
+                        <span class="tool-status complete">Ready</span>
+                    </div>
+                    <div class="tool-item">
+                        <span>CSV Analyzer</span>
+                        <span class="tool-status complete">Ready</span>
+                    </div>
+                    <div class="tool-item">
+                        <span>Knowledge Search</span>
+                        <span class="tool-status complete">Ready</span>
+                    </div>
+                    <div class="tool-item">
+                        <span>Compliance Analyzer</span>
+                        <span class="tool-status complete">Ready</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="demo-controls">
+            <button class="btn" onclick="startDemo()">🚀 Start Demo</button>
+            <button class="btn" onclick="connectWebSocket()">🔌 Connect WebSocket</button>
+            <button class="btn" onclick="clearThoughts()">🗑️ Clear Log</button>
+        </div>
+
+        <div class="footer">
+            <p>🔒 Enterprise AI Transparency Platform | Built with Azure SignalR & WebSocket Technology</p>
+        </div>
+    </div>
+
+    <script>
+        let connection;
+        let sessionId = null;
+        let messageCount = 0;
+        let demoInterval = null;
+        let isConnected = false;
+
+        const demoData = [
+            {
+                type: 'agent_thought',
+                agent: 'PDF Agent',
+                content: 'Analyzing uploaded compliance document structure...',
+                tool: 'PDF Processor'
+            },
+            {
+                type: 'tool_execution',
+                agent: 'PDF Agent',
+                content: 'Extracting text and metadata from 45-page regulatory document',
+                tool: 'PDF Processor',
+                status: 'processing'
+            },
+            {
+                type: 'decision_point',
+                agent: 'Compliance Agent',
+                content: 'Detected NERC CIP compliance requirements. Switching to regulatory analysis mode.',
+                reasoning: 'Document contains critical infrastructure keywords'
+            },
+            {
+                type: 'collaboration',
+                agent: 'Compliance Agent',
+                content: 'Requesting CSV data analysis from Data Agent for cross-validation',
+                target: 'Data Agent'
+            },
+            {
+                type: 'tool_execution',
+                agent: 'Data Agent',
+                content: 'Processing utility billing data CSV (2,847 records)',
+                tool: 'CSV Analyzer',
+                status: 'complete'
+            },
+            {
+                type: 'agent_thought',
+                agent: 'Knowledge Agent',
+                content: 'Searching knowledge base for similar compliance violations...',
+                tool: 'Knowledge Search'
+            },
+            {
+                type: 'decision_point',
+                agent: 'Compliance Agent',
+                content: 'Found 3 potential violations. Confidence: 87%. Generating remediation plan.',
+                reasoning: 'Cross-referenced with historical compliance patterns'
+            }
+        ];
+
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connectionStatus');
+            const text = document.getElementById('connectionText');
+            
+            if (connected) {
+                indicator.classList.add('connected');
+                text.textContent = 'Connected to SignalR Hub';
+                isConnected = true;
+            } else {
+                indicator.classList.remove('connected');
+                text.textContent = 'Disconnected';
+                isConnected = false;
+            }
+        }
+
+        function addThought(data) {
+            const container = document.getElementById('thoughtsContainer');
+            const thoughtItem = document.createElement('div');
+            thoughtItem.className = `thought-item ${data.type.replace('_', '-')}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            
+            thoughtItem.innerHTML = `
+                <div class="thought-header">
+                    <span class="agent-name">${data.agent}</span>
+                    <span class="timestamp">${timestamp}</span>
+                </div>
+                <div class="thought-content">
+                    ${data.content}
+                    ${data.tool ? `<br><small><strong>Tool:</strong> ${data.tool}</small>` : ''}
+                    ${data.reasoning ? `<br><small><strong>Reasoning:</strong> ${data.reasoning}</small>` : ''}
+                    ${data.target ? `<br><small><strong>Collaborating with:</strong> ${data.target}</small>` : ''}
+                </div>
+            `;
+            
+            container.appendChild(thoughtItem);
+            container.scrollTop = container.scrollHeight;
+            
+            // Update metrics
+            messageCount++;
+            document.getElementById('totalMessages').textContent = messageCount;
+            
+            // Update active agents count
+            const agents = new Set();
+            document.querySelectorAll('.agent-name').forEach(el => agents.add(el.textContent));
+            document.getElementById('activeAgents').textContent = Math.max(0, agents.size - 1); // -1 for System
+        }
+
+        function updateToolStatus(toolName, status) {
+            const toolItems = document.querySelectorAll('.tool-item');
+            toolItems.forEach(item => {
+                const toolText = item.querySelector('span').textContent;
+                if (toolText.includes(toolName.split(' ')[0])) {
+                    const statusSpan = item.querySelector('.tool-status');
+                    statusSpan.className = `tool-status ${status}`;
+                    statusSpan.textContent = status === 'processing' ? 'Processing' : 
+                                            status === 'complete' ? 'Complete' : 
+                                            status === 'error' ? 'Error' : 'Ready';
+                }
+            });
+        }
+
+        async function connectWebSocket() {
+            if (isConnected) return;
+            
+            try {
+                // In a real implementation, this would connect to your Azure SignalR service
+                // connection = new signalR.HubConnectionBuilder()
+                //     .withUrl("https://pdf-ai-agent-func-dev-v2.azurewebsites.net/api/websocket-negotiate")
+                //     .build();
+                
+                // For demo purposes, simulate connection
+                updateConnectionStatus(true);
+                sessionId = 'demo-session-' + Math.random().toString(36).substr(2, 9);
+                document.getElementById('sessionId').textContent = sessionId;
+                document.getElementById('sessionStart').textContent = new Date().toLocaleTimeString();
+                
+                addThought({
+                    type: 'agent_thought',
+                    agent: 'System',
+                    content: '✅ Connected to AI Transparency Hub. Ready to monitor agent activities.',
+                });
+                
+            } catch (error) {
+                console.error('Connection failed:', error);
+                addThought({
+                    type: 'agent_thought',
+                    agent: 'System',
+                    content: '❌ Connection failed. Running in demo mode.',
+                });
+            }
+        }
+
+        function startDemo() {
+            if (demoInterval) {
+                clearInterval(demoInterval);
+                demoInterval = null;
+                return;
+            }
+            
+            if (!isConnected) {
+                connectWebSocket();
+            }
+            
+            let index = 0;
+            demoInterval = setInterval(() => {
+                if (index < demoData.length) {
+                    const data = demoData[index];
+                    addThought(data);
+                    
+                    if (data.tool && data.status) {
+                        updateToolStatus(data.tool, data.status);
+                    }
+                    
+                    index++;
+                } else {
+                    clearInterval(demoInterval);
+                    demoInterval = null;
+                    addThought({
+                        type: 'agent_thought',
+                        agent: 'System',
+                        content: '🎯 Demo completed! This showcases real-time AI transparency in action.',
+                    });
+                }
+            }, 2000);
+        }
+
+        function clearThoughts() {
+            const container = document.getElementById('thoughtsContainer');
+            container.innerHTML = `
+                <div class="thought-item">
+                    <div class="thought-header">
+                        <span class="agent-name">System</span>
+                        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="thought-content">
+                        Activity log cleared. Ready for new monitoring session.
+                    </div>
+                </div>
+            `;
+            messageCount = 1;
+            document.getElementById('totalMessages').textContent = messageCount;
+            document.getElementById('activeAgents').textContent = '0';
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            updateConnectionStatus(false);
+        });
+    </script>
+</body>
+</html>
