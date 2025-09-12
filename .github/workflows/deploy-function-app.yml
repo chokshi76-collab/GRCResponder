@@ -54,6 +54,14 @@ jobs:
         Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $tenantId
         Set-AzContext -Subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+    - name: Login to Azure CLI for bash commands
+      run: |
+        az login --service-principal \
+          --username ${{ fromJson(secrets.AZURE_CREDENTIALS).clientId }} \
+          --password ${{ fromJson(secrets.AZURE_CREDENTIALS).clientSecret }} \
+          --tenant ${{ fromJson(secrets.AZURE_CREDENTIALS).tenantId }}
+        az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
     - name: Get Function App Name from Infrastructure
       shell: bash
       run: |
