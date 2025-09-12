@@ -49,12 +49,19 @@ jobs:
     
     - name: Deploy Infrastructure
       run: |
+        # Check if USER_OBJECT_ID secret is available, otherwise use the one from parameters file
+        if [ -n "${{ secrets.USER_OBJECT_ID }}" ]; then
+          USER_OBJ_ID="${{ secrets.USER_OBJECT_ID }}"
+        else
+          USER_OBJ_ID="402ed151-67f7-4f36-bc74-ac2b9c9e1980"  # Fallback from parameters file
+        fi
+        
         az deployment group create \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
           --template-file infrastructure/bicep/main.bicep \
           --parameters environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json \
-          --parameters userObjectId="${{ secrets.USER_OBJECT_ID }}" \
-          --mode Complete \
+          --parameters userObjectId="$USER_OBJ_ID" \
+          --mode Incremental \
           --name "infrastructure-$(date +%Y%m%d-%H%M%S)"
     
     - name: Get Deployment Outputs

@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: func-pdfai-dev-tjqwgu4v
   AZURE_FUNCTIONAPP_PACKAGE_PATH: src/mcp-server
   RESOURCE_GROUP: pdf-ai-agent-rg-dev
   AZURE_SUBSCRIPTION_ID: d4d5edc0-d0d0-491c-8d55-4bf5481b5b49
+  ENVIRONMENT_NAME: dev
 
 jobs:
   build-and-deploy:
@@ -49,16 +49,13 @@ jobs:
         Connect-AzAccount -ServicePrincipal -Credential $credential -Tenant $tenantId
         Set-AzContext -Subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Deploy Bicep infrastructure
-      shell: pwsh
+    - name: Get Function App Name from Infrastructure
+      shell: bash
       run: |
-        New-AzResourceGroupDeployment `
-          -ResourceGroupName ${{ env.RESOURCE_GROUP }} `
-          -TemplateFile "infrastructure/bicep/main.bicep" `
-          -TemplateParameterFile "environments/dev/parameters.dev.json" `
-          -Mode Complete `
-          -Force `
-          -Verbose
+        # Get the function app name from Azure resources (it was created by infrastructure pipeline)
+        FUNCTION_APP_NAME=$(az functionapp list --resource-group ${{ env.RESOURCE_GROUP }} --query "[0].name" --output tsv)
+        echo "AZURE_FUNCTIONAPP_NAME=$FUNCTION_APP_NAME" >> $GITHUB_ENV
+        echo "Function App Name: $FUNCTION_APP_NAME"
 
     - name: npm clean install and build
       run: |
@@ -86,3 +83,5 @@ jobs:
         app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
         package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
         publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+      env:
+        FUNCTION_APP_NAME: ${{ env.AZURE_FUNCTIONAPP_NAME }}
