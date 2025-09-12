@@ -278,4 +278,4 @@ output documentIntelligenceName string = documentIntelligence.name
 output searchServiceName string = searchService.name
 // SQL outputs removed - using serverless architecture
 output storageAccountName string = storageAccount.name
-output functionAppName string = functionApp.name
+output functionAppName string = functionApp.name# Updated Fri, Sep 12, 2025  2:47:25 PM
