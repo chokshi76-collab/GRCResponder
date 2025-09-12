@@ -56,11 +56,12 @@ jobs:
           USER_OBJ_ID="402ed151-67f7-4f36-bc74-ac2b9c9e1980"  # Fallback from parameters file
         fi
         
+        # Deploy using the working function-app-only template since main template has Azure API issues
+        echo "Deploying infrastructure incrementally to avoid Azure API consumption errors..."
         az deployment group create \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --template-file infrastructure/bicep/main.bicep \
-          --parameters environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json \
-          --parameters userObjectId="$USER_OBJ_ID" \
+          --template-file infrastructure/bicep/function-app-only.bicep \
+          --parameters environmentName="${{ env.ENVIRONMENT_NAME }}" \
           --mode Incremental \
           --name "infrastructure-$(date +%Y%m%d-%H%M%S)"
     
