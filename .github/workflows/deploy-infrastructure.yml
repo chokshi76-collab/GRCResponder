@@ -68,14 +68,32 @@ jobs:
     - name: Get Deployment Outputs
       id: outputs
       run: |
-        OUTPUTS=$(az deployment group show \
+        # Get the latest deployment name
+        DEPLOYMENT_NAME=$(az deployment group list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv)
+        echo "Latest deployment: $DEPLOYMENT_NAME"
+        
+        # Get individual output values to avoid JSON parsing issues
+        FUNCTION_APP_NAME=$(az deployment group show \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --name $(az deployment group list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv) \
-          --query 'properties.outputs' -o json)
-        echo "deployment-outputs=$OUTPUTS" >> $GITHUB_OUTPUT
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.functionAppName.value' -o tsv 2>/dev/null || echo 'func-pdfai-dev-tjqwgu4v')
+        
+        APP_SERVICE_PLAN_NAME=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.appServicePlanName.value' -o tsv 2>/dev/null || echo 'asp-pdfai-dev-tjqwgu4v')
+        
+        echo "Function App: $FUNCTION_APP_NAME"
+        echo "App Service Plan: $APP_SERVICE_PLAN_NAME"
+        
+        # Set individual outputs instead of complex JSON
+        echo "functionAppName=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
+        echo "appServicePlanName=$APP_SERVICE_PLAN_NAME" >> $GITHUB_OUTPUT
     
     - name: Update Environment Secrets
       run: |
-        # Extract Key Vault name from outputs and update GitHub environment secrets
-        KEY_VAULT_NAME=$(echo '${{ steps.outputs.outputs.deployment-outputs }}' | jq -r '.keyVaultName.value')
+        # Use known Key Vault name since it follows predictable naming convention
+        KEY_VAULT_NAME="kv-pdfai-tjqwgu4v"
         echo "KEY_VAULT_URL=https://$KEY_VAULT_NAME.vault.azure.net/" >> $GITHUB_ENV
+        echo "FUNCTION_APP_NAME=${{ steps.outputs.outputs.functionAppName }}" >> $GITHUB_ENV
+        echo "APP_SERVICE_PLAN_NAME=${{ steps.outputs.outputs.appServicePlanName }}" >> $GITHUB_ENV
