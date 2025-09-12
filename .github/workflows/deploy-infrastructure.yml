@@ -56,12 +56,13 @@ jobs:
           USER_OBJ_ID="402ed151-67f7-4f36-bc74-ac2b9c9e1980"  # Fallback from parameters file
         fi
         
-        # Deploy using the working function-app-only template since main template has Azure API issues
-        echo "Deploying infrastructure incrementally to avoid Azure API consumption errors..."
+        # Deploy using the successful main.bicep template (without SignalR initially)
+        echo "Deploying infrastructure using successful main.bicep template..."
         az deployment group create \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --template-file infrastructure/bicep/function-app-only.bicep \
-          --parameters environmentName="${{ env.ENVIRONMENT_NAME }}" \
+          --template-file infrastructure/bicep/main.bicep \
+          --parameters environments/${{ env.ENVIRONMENT_NAME }}/parameters.${{ env.ENVIRONMENT_NAME }}.json \
+          --parameters userObjectId="$USER_OBJ_ID" \
           --mode Incremental \
           --name "infrastructure-$(date +%Y%m%d-%H%M%S)"
     
@@ -72,28 +73,31 @@ jobs:
         DEPLOYMENT_NAME=$(az deployment group list --resource-group ${{ env.RESOURCE_GROUP_NAME }} --query '[0].name' -o tsv)
         echo "Latest deployment: $DEPLOYMENT_NAME"
         
-        # Get individual output values to avoid JSON parsing issues
+        # Get individual output values to avoid JSON parsing issues  
         FUNCTION_APP_NAME=$(az deployment group show \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
           --name "$DEPLOYMENT_NAME" \
           --query 'properties.outputs.functionAppName.value' -o tsv 2>/dev/null || echo 'func-pdfai-dev-tjqwgu4v')
         
-        APP_SERVICE_PLAN_NAME=$(az deployment group show \
+        KEY_VAULT_NAME=$(az deployment group show \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
           --name "$DEPLOYMENT_NAME" \
-          --query 'properties.outputs.appServicePlanName.value' -o tsv 2>/dev/null || echo 'asp-pdfai-dev-tjqwgu4v')
+          --query 'properties.outputs.keyVaultName.value' -o tsv 2>/dev/null || echo 'kv-pdfai-tjqwgu4v')
         
         echo "Function App: $FUNCTION_APP_NAME"
-        echo "App Service Plan: $APP_SERVICE_PLAN_NAME"
+        echo "Key Vault: $KEY_VAULT_NAME"
         
         # Set individual outputs instead of complex JSON
         echo "functionAppName=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
-        echo "appServicePlanName=$APP_SERVICE_PLAN_NAME" >> $GITHUB_OUTPUT
+        echo "keyVaultName=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
     
     - name: Update Environment Secrets
       run: |
-        # Use known Key Vault name since it follows predictable naming convention
-        KEY_VAULT_NAME="kv-pdfai-tjqwgu4v"
+        # Use outputs from successful deployment
+        KEY_VAULT_NAME="${{ steps.outputs.outputs.keyVaultName }}"
+        FUNCTION_APP_NAME="${{ steps.outputs.outputs.functionAppName }}"
         echo "KEY_VAULT_URL=https://$KEY_VAULT_NAME.vault.azure.net/" >> $GITHUB_ENV
-        echo "FUNCTION_APP_NAME=${{ steps.outputs.outputs.functionAppName }}" >> $GITHUB_ENV
-        echo "APP_SERVICE_PLAN_NAME=${{ steps.outputs.outputs.appServicePlanName }}" >> $GITHUB_ENV
+        echo "FUNCTION_APP_NAME=$FUNCTION_APP_NAME" >> $GITHUB_ENV
+        echo "Infrastructure deployment completed successfully!"
+        echo "Function App: $FUNCTION_APP_NAME"
+        echo "Key Vault: $KEY_VAULT_NAME"

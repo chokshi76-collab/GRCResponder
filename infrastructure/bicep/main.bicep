@@ -19,7 +19,6 @@ var searchServiceName = 'pdf-ai-agent-search-free-${environmentName}'
 var storageAccountName = 'stpdfai${environmentName}${uniqueSuffix}'
 var functionAppName = 'func-pdfai-${environmentName}-${uniqueSuffix}'
 var appServicePlanName = 'asp-pdfai-${environmentName}-${uniqueSuffix}'
-var signalRServiceName = 'signalr-pdfai-${environmentName}-${uniqueSuffix}'
 
 // SQL credentials removed - using serverless architecture
 
@@ -118,46 +117,6 @@ resource searchService 'Microsoft.Search/searchServices@2023-11-01' = {
   }
 }
 
-// Azure SignalR Service for WebSocket real-time transparency
-resource signalRService 'Microsoft.SignalRService/signalR@2023-06-01-preview' = {
-  name: signalRServiceName
-  location: location
-  sku: {
-    name: 'Free_F1'
-    tier: 'Free'
-    capacity: 1
-  }
-  properties: {
-    serverless: {
-      connectionTimeoutInSeconds: 30
-    }
-    features: [
-      {
-        flag: 'ServiceMode'
-        value: 'Serverless'
-      }
-      {
-        flag: 'EnableConnectivityLogs'
-        value: 'true'
-      }
-      {
-        flag: 'EnableMessagingLogs'
-        value: 'true'
-      }
-    ]
-    cors: {
-      allowedOrigins: [
-        '*'
-      ]
-    }
-    networkACLs: {
-      defaultAction: 'Allow'
-    }
-    publicNetworkAccess: 'Enabled'
-    disableLocalAuth: false
-  }
-}
-
 // SQL resources removed - using pure serverless architecture with Azure Functions + Document Intelligence + AI Search
 // Future data storage will use Azure Tables, Cosmos DB, or external APIs as needed
 
@@ -237,25 +196,10 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
           name: 'AZURE_FORM_RECOGNIZER_KEY'
           value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=document-intelligence-key)'
         }
-        {
-          name: 'AZURE_SIGNALR_CONNECTION_STRING'
-          value: '@Microsoft.KeyVault(VaultName=${keyVault.name};SecretName=signalr-connection-string)'
-        }
-        {
-          name: 'TRANSPARENCY_LOG_LEVEL'
-          value: 'detailed'
-        }
-        {
-          name: 'WEBSOCKET_MAX_CONNECTIONS'
-          value: '100'
-        }
       ]
       cors: {
         allowedOrigins: [
           'https://portal.azure.com'
-          'http://localhost:3000'
-          'https://localhost:3000'
-          '*'
         ]
       }
       use32BitWorkerProcess: false
@@ -328,19 +272,10 @@ resource storageConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-0
   }
 }
 
-resource signalRConnectionStringSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'signalr-connection-string'
-  properties: {
-    value: signalRService.listKeys().primaryConnectionString
-  }
-}
-
 // Outputs
 output keyVaultName string = keyVault.name
 output documentIntelligenceName string = documentIntelligence.name
 output searchServiceName string = searchService.name
-output signalRServiceName string = signalRService.name
 // SQL outputs removed - using serverless architecture
 output storageAccountName string = storageAccount.name
 output functionAppName string = functionApp.name
