@@ -220,9 +220,9 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
     }
     storageProfile: {
       imageReference: {
-        publisher: 'MicrosoftWindowsServer'
-        offer: 'WindowsServer'
-        sku: '2022-datacenter-azure-edition-core'
+        publisher: 'MicrosoftWindowsDesktop'
+        offer: 'Windows-10'
+        sku: 'win10-22h2-pro-g2'
         version: 'latest'
       }
       osDisk: {
@@ -296,8 +296,8 @@ output keyVaultName string = keyVault.name
 output costAnalysis object = {
   vm: {
     size: 'Standard_B1s'
-    estimatedMonthlyCost: '$12-15 USD'
-    features: ['1 vCPU', '1 GB RAM', 'Burstable performance']
+    estimatedMonthlyCost: '$18-22 USD'
+    features: ['1 vCPU', '1 GB RAM', 'Windows 10 Pro licensed', 'Burstable performance']
   }
   storage: {
     type: 'Standard_LRS'
@@ -310,9 +310,9 @@ output costAnalysis object = {
     features: ['Dynamic IP', 'Basic NSG']
   }
   total: {
-    estimatedMonthlyCost: '$15-20 USD'
+    estimatedMonthlyCost: '$21-27 USD'
     dailyShutdown: 'Auto-shutdown at 7 PM to minimize costs'
-    optimization: 'All resources use cheapest available tiers'
+    optimization: 'Windows 10 Pro with automatic activation + cheapest available tiers'
   }
 }
 
