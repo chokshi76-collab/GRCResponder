@@ -43,16 +43,15 @@ jobs:
     
     - name: Deploy Static Web App Infrastructure
       run: |
-        # Deploy the Static Web App infrastructure using Bicep
+        # Deploy the Static Web App infrastructure using Bicep (without GitHub integration initially)
         echo "Deploying Static Web App infrastructure..."
         az deployment group create \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
           --template-file infrastructure/bicep/static-web-app.bicep \
           --parameters environmentName=${{ env.ENVIRONMENT_NAME }} \
           --parameters repositoryUrl="https://github.com/${{ github.repository }}" \
-          --parameters repositoryToken="${{ secrets.GITHUB_TOKEN }}" \
           --mode Incremental \
-          --name "frontend-$(date +%Y%m%d-%H%M%S)"
+          --name "frontend-$(date +%Y%m%d-%H%M%S)" || echo "Note: Manual GitHub connection required for automatic deployments"
     
     - name: Get Deployment Outputs
       id: outputs

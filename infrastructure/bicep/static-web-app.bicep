@@ -9,13 +9,13 @@ param repositoryUrl string = 'https://github.com/chokshi76-collab/GRCResponder'
 
 @description('GitHub repository token for deployment')
 @secure()
-param repositoryToken string
+param repositoryToken string = ''
 
 // Generate unique names with environment suffix
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 var staticWebAppName = 'swa-pdfai-frontend-${environmentName}-${uniqueSuffix}'
 
-// Static Web App for Frontend
+// Static Web App for Frontend - Create without GitHub integration first
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: staticWebAppName
   location: location
@@ -24,13 +24,14 @@ resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
     tier: 'Free'
   }
   properties: {
-    repositoryUrl: repositoryUrl
-    branch: 'main'
-    repositoryToken: repositoryToken
-    buildProperties: {
+    // Only include GitHub properties if token is provided
+    repositoryUrl: !empty(repositoryToken) ? repositoryUrl : null
+    branch: !empty(repositoryToken) ? 'main' : null
+    repositoryToken: !empty(repositoryToken) ? repositoryToken : null
+    buildProperties: !empty(repositoryToken) ? {
       appLocation: '/demo'
       outputLocation: ''
-    }
+    } : null
     stagingEnvironmentPolicy: 'Enabled'
     allowConfigFileUpdates: true
     enterpriseGradeCdnStatus: 'Disabled'
