@@ -1,6 +1,11 @@
 name: Deploy Low-Cost Windows VM
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'infrastructure/bicep/complete-low-cost.bicep'
+      - '.github/workflows/deploy-vm.yml'
   workflow_dispatch:
     inputs:
       environment:
@@ -34,6 +39,12 @@ jobs:
         echo "ENVIRONMENT_NAME=$ENV_NAME" >> $GITHUB_ENV
         echo "RESOURCE_GROUP_NAME=pdf-ai-agent-rg-$ENV_NAME" >> $GITHUB_ENV
         echo "LOCATION=westus2" >> $GITHUB_ENV
+        # Set default password for push triggers
+        if [ -z "${{ github.event.inputs.adminPassword }}" ]; then
+          echo "VM_ADMIN_PASSWORD=SecureVM2024!" >> $GITHUB_ENV
+        else
+          echo "VM_ADMIN_PASSWORD=${{ github.event.inputs.adminPassword }}" >> $GITHUB_ENV
+        fi
     
     - name: Azure Login
       uses: azure/login@v1
@@ -48,7 +59,7 @@ jobs:
     
     - name: Validate Password Complexity
       run: |
-        PASSWORD="${{ github.event.inputs.adminPassword }}"
+        PASSWORD="${{ env.VM_ADMIN_PASSWORD }}"
         if [[ ${#PASSWORD} -lt 12 ]]; then
           echo "❌ Password must be at least 12 characters"
           exit 1
@@ -79,7 +90,7 @@ jobs:
           --template-file infrastructure/bicep/complete-low-cost.bicep \
           --parameters environmentName=${{ env.ENVIRONMENT_NAME }} \
           --parameters adminUsername=vmadmin \
-          --parameters adminPassword="${{ github.event.inputs.adminPassword }}" \
+          --parameters adminPassword="${{ env.VM_ADMIN_PASSWORD }}" \
           --mode Incremental \
           --name "vm-deploy-$(date +%Y%m%d-%H%M%S)"
     
