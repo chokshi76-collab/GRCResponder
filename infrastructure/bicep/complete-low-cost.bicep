@@ -209,7 +209,7 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   location: location
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B1s' // $12-15/month
+      vmSize: 'Standard_D2s_v3' // Better networking and performance
     }
     osProfile: {
       computerName: computerName
@@ -297,9 +297,9 @@ output keyVaultName string = keyVault.name
 // Cost breakdown
 output costAnalysis object = {
   vm: {
-    size: 'Standard_B1s'
-    estimatedMonthlyCost: '$5-6 USD (6 hrs/day usage)'
-    features: ['1 vCPU', '1 GB RAM', 'Windows 10 Pro licensed', 'Burstable performance', 'Pay-per-minute billing']
+    size: 'Standard_D2s_v3'
+    estimatedMonthlyCost: '$35-40 USD (6 hrs/day usage)'
+    features: ['2 vCPU', '8 GB RAM', 'Windows 10 Pro licensed', 'Premium networking', 'Pay-per-minute billing']
   }
   storage: {
     type: 'Standard_LRS'
@@ -312,9 +312,9 @@ output costAnalysis object = {
     features: ['Dynamic IP', 'Basic NSG']
   }
   total: {
-    estimatedMonthlyCost: '$8-11 USD (6 hrs/day usage)'
+    estimatedMonthlyCost: '$40-45 USD (6 hrs/day usage)'
     dailyShutdown: 'Auto-shutdown at 7 PM to minimize costs'
-    optimization: 'Windows 10 Pro + pay-per-minute billing + manual shutdown for 73% cost reduction'
+    optimization: 'Windows 10 Pro + pay-per-minute billing + D2s_v3 for reliable networking'
   }
 }
 
