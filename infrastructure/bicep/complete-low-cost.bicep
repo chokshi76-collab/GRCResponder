@@ -7,9 +7,6 @@ param location string = resourceGroup().location
 @description('Admin username for the VM')
 param adminUsername string = 'vmadmin'
 
-@description('Key Vault name containing the admin password')
-param keyVaultName string = 'kv-pdfai-${environmentName}-${uniqueSuffix}'
-
 @description('Secret name for admin password in Key Vault')
 param adminPasswordSecretName string = 'vm-admin-password'
 
@@ -289,7 +286,6 @@ output demoUrl string = 'http://${publicIP.properties.dnsSettings.fqdn}:3000'
 output storageWebUrl string = replace(replace(storageAccount.properties.primaryEndpoints.web, 'https://', ''), '/', '')
 output staticWebsiteUrl string = storageAccount.properties.primaryEndpoints.web
 output keyVaultName string = keyVault.name
-output adminPasswordSecretName string = adminPasswordSecret.name
 
 // Cost breakdown
 output costAnalysis object = {
