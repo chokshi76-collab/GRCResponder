@@ -131,7 +131,7 @@ jobs:
         echo "demoUrl=$DEMO_URL" >> $GITHUB_OUTPUT
         echo "storageUrl=$STORAGE_URL" >> $GITHUB_OUTPUT
     
-    - name: Display Access Information
+    - name: Display Access Information  
       run: |
         echo "🎉 Low-Cost Windows VM Deployed Successfully!"
         echo ""
