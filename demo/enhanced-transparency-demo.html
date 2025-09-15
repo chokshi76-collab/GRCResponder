@@ -405,6 +405,70 @@
             margin: 10px 0;
             border: 1px solid #c3e6cb;
         }
+
+        .demo-scenarios {
+            margin-top: 20px;
+        }
+
+        .scenario-card {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+            border: 2px solid #dee2e6;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .scenario-card.active {
+            display: block;
+            border-color: #3498db;
+        }
+
+        .scenario-card h4 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .scenario-card p {
+            color: #34495e;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .insights-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .insights-panel h3 {
+            color: #155724;
+            margin-bottom: 15px;
+        }
+
+        .insight-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border-left: 3px solid #28a745;
+        }
+
+        .violation-item {
+            background: #fff5f5;
+            border-left-color: #e53e3e;
+            color: #c53030;
+        }
+
+        .recommendation-item {
+            background: #f0fff4;
+            border-left-color: #38a169;
+            color: #2f855a;
+        }
     </style>
 </head>
 <body>
@@ -431,7 +495,8 @@
                 
                 <div class="file-upload-section">
                     <div class="upload-area">
-                        <p>📁 Upload documents for AI processing</p>
+                        <p>📁 Upload documents or enter URL for AI processing</p>
+                        <input type="text" id="urlInput" placeholder="Enter PDF/CSV URL (recommended for large files)" style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
                         <input type="file" id="fileInput" class="file-input" accept=".pdf,.csv" multiple>
                         <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
                             Choose Files
@@ -439,24 +504,57 @@
                         <button class="upload-btn" id="processBtn" onclick="processFile()" disabled>
                             🚀 Process File
                         </button>
+                        <button class="upload-btn" onclick="testWithSamplePDF()">
+                            🧪 Test Sample
+                        </button>
                     </div>
                     <div id="fileInfo"></div>
                 </div>
 
                 <div class="scenario-selector">
-                    <h3>🎯 Scenario Selection:</h3>
+                    <h3>🎯 Demo Scenarios - Choose Your Pitch:</h3>
                     <button class="scenario-btn active" data-scenario="compliance" onclick="selectScenario('compliance')">
-                        Compliance Analysis
-                    </button>
-                    <button class="scenario-btn" data-scenario="financial" onclick="selectScenario('financial')">
-                        Financial Processing
-                    </button>
-                    <button class="scenario-btn" data-scenario="operations" onclick="selectScenario('operations')">
-                        Operations Data
+                        🏛️ Regulatory Compliance
+                        <div style="font-size: 0.7em; margin-top: 2px;">NERC CIP • EPA • PUC Analysis</div>
                     </button>
                     <button class="scenario-btn" data-scenario="customer" onclick="selectScenario('customer')">
-                        Customer Journey
+                        👥 Customer Experience
+                        <div style="font-size: 0.7em; margin-top: 2px;">Journey Mapping • Sentiment</div>
                     </button>
+                    <button class="scenario-btn" data-scenario="operations" onclick="selectScenario('operations')">
+                        ⚡ Operations Intelligence
+                        <div style="font-size: 0.7em; margin-top: 2px;">Document Processing</div>
+                    </button>
+                    <button class="scenario-btn" data-scenario="financial" onclick="selectScenario('financial')">
+                        💰 Financial Analytics
+                        <div style="font-size: 0.7em; margin-top: 2px;">Coming Soon</div>
+                    </button>
+                </div>
+                
+                <div class="demo-scenarios" id="demoScenarios">
+                    <div class="scenario-card active" data-scenario="compliance">
+                        <h4>🏛️ Regulatory Compliance Scenario</h4>
+                        <p><strong>Pitch:</strong> "Our AI automatically analyzes utility documents against all major regulations and provides actionable remediation plans with cost estimates."</p>
+                        <button class="upload-btn" onclick="runComplianceDemo()">🚀 Run Compliance Demo</button>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="customer">
+                        <h4>👥 Customer Experience Scenario</h4>
+                        <p><strong>Pitch:</strong> "Track customer journeys across all channels, identify pain points, and get AI-powered recommendations to improve satisfaction."</p>
+                        <button class="upload-btn" onclick="runCustomerDemo()">🚀 Run Customer Demo</button>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="operations">
+                        <h4>⚡ Operations Intelligence Scenario</h4>
+                        <p><strong>Pitch:</strong> "Extract structured data from any utility document and gain instant insights for operational decisions."</p>
+                        <button class="upload-btn" onclick="runOperationsDemo()">🚀 Run Operations Demo</button>
+                    </div>
+                    
+                    <div class="scenario-card" data-scenario="financial">
+                        <h4>💰 Financial Analytics Scenario</h4>
+                        <p><strong>Coming Soon:</strong> Billing analytics, revenue optimization, and financial reporting automation.</p>
+                        <button class="upload-btn" disabled>🔧 In Development</button>
+                    </div>
                 </div>
 
                 <div class="agent-thoughts" id="thoughtsContainer">
@@ -505,6 +603,13 @@
                 <h3 style="margin-top: 20px; margin-bottom: 15px; color: #2c3e50;">🛠️ MCP Tools</h3>
                 <div class="tools-panel" id="toolsContainer">
                     <!-- Tools will be loaded dynamically -->
+                </div>
+
+                <div id="insightsPanel" class="insights-panel" style="display: none;">
+                    <h3>🎯 AI Insights & Outcomes</h3>
+                    <div id="insightsContent">
+                        <!-- Dynamic insights will be displayed here -->
+                    </div>
                 </div>
 
                 <div class="demo-controls">
@@ -603,6 +708,7 @@
         // File Upload Setup
         function setupFileUpload() {
             const fileInput = document.getElementById('fileInput');
+            const urlInput = document.getElementById('urlInput');
             const processBtn = document.getElementById('processBtn');
             const fileInfo = document.getElementById('fileInfo');
             
@@ -610,6 +716,7 @@
                 const file = e.target.files[0];
                 if (file) {
                     currentFile = file;
+                    urlInput.value = '';
                     processBtn.disabled = false;
                     fileInfo.innerHTML = `
                         <div class="success-message">
@@ -619,46 +726,80 @@
                     addThought('user', 'File Selected', `📎 Selected ${file.name} for processing`);
                 }
             });
+            
+            urlInput.addEventListener('input', function(e) {
+                if (e.target.value.trim()) {
+                    currentFile = null;
+                    fileInput.value = '';
+                    processBtn.disabled = false;
+                    fileInfo.innerHTML = `
+                        <div class="success-message">
+                            🌐 URL: ${e.target.value}
+                        </div>
+                    `;
+                    addThought('user', 'URL Entered', `🔗 Entered URL for processing: ${e.target.value}`);
+                } else {
+                    processBtn.disabled = true;
+                    fileInfo.innerHTML = '';
+                }
+            });
         }
 
         // Process File
         async function processFile() {
-            if (!currentFile) return;
+            const urlInput = document.getElementById('urlInput');
+            const url = urlInput.value.trim();
             
-            addThought('orchestrator', 'Processing Started', `🚀 Starting ${selectedScenario} analysis for ${currentFile.name}`);
+            if (!currentFile && !url) return;
+            
+            const source = currentFile ? currentFile.name : url;
+            addThought('orchestrator', 'Processing Started', `🚀 Starting ${selectedScenario} analysis for ${source}`);
             
             // Simulate AI thinking process
-            addLiveThought('orchestrator', 'Decision Making', `🤔 Analyzing file type: ${currentFile.type}`);
+            const fileType = currentFile ? currentFile.type : (url.toLowerCase().includes('.pdf') ? 'PDF' : 'CSV');
+            addLiveThought('orchestrator', 'Decision Making', `🤔 Analyzing input type: ${fileType}`);
             await sleep(1000);
             
             addLiveThought('orchestrator', 'Tool Selection', `🎯 Selected ${selectedScenario} processing pipeline`);
             await sleep(1000);
             
-            if (currentFile.name.toLowerCase().endsWith('.pdf')) {
-                await processPDF();
-            } else if (currentFile.name.toLowerCase().endsWith('.csv')) {
-                await processCSV();
+            if ((currentFile && currentFile.name.toLowerCase().endsWith('.pdf')) || (url && url.toLowerCase().includes('.pdf'))) {
+                await processPDF(url);
+            } else if ((currentFile && currentFile.name.toLowerCase().endsWith('.csv')) || (url && url.toLowerCase().includes('.csv'))) {
+                await processCSV(url);
             } else {
                 addThought('error', 'File Type Error', '❌ Unsupported file type. Please upload PDF or CSV files.', 'error');
             }
         }
 
         // Process PDF
-        async function processPDF() {
+        async function processPDF(url = null) {
             updateToolStatus('process_pdf', 'processing');
             addLiveThought('pdf-agent', 'Tool Execution', '📄 Initializing PDF processor...');
             
             try {
-                // Convert file to base64
-                const base64 = await fileToBase64(currentFile);
-                addLiveThought('pdf-agent', 'Data Conversion', '🔄 Converting PDF to base64 for API transmission');
+                let filePath;
+                
+                if (url) {
+                    // Use URL directly
+                    filePath = url;
+                    addLiveThought('pdf-agent', 'URL Processing', '🌐 Processing PDF from URL (recommended for large files)');
+                } else {
+                    // Convert file to base64
+                    const dataUrl = await fileToBase64(currentFile);
+                    // Extract base64 content without data URL prefix
+                    filePath = dataUrl.split(',')[1];
+                    addLiveThought('pdf-agent', 'Data Conversion', '🔄 Converting PDF to base64 for API transmission');
+                }
                 
                 await sleep(1500);
                 
-                // Call PDF processing API
+                // Call PDF processing API with correct parameter structure
                 const payload = {
-                    file_path: base64,
-                    analysis_type: 'comprehensive'
+                    parameters: {
+                        file_path: filePath,
+                        analysis_type: 'comprehensive'
+                    }
                 };
                 
                 addLiveThought('pdf-agent', 'API Call', '📡 Sending PDF to Azure Document Intelligence...');
@@ -712,9 +853,11 @@
                 await sleep(1500);
                 
                 const payload = {
-                    csv_data: csvContent,
-                    analysis_type: 'comprehensive',
-                    include_recommendations: true
+                    parameters: {
+                        csv_data: csvContent,
+                        analysis_type: 'comprehensive',
+                        include_recommendations: true
+                    }
                 };
                 
                 addLiveThought('csv-agent', 'Statistical Analysis', '📈 Performing statistical analysis and data quality assessment...');
@@ -757,9 +900,11 @@
             
             try {
                 const payload = {
-                    compliance_domain: 'comprehensive',
-                    document_content: JSON.stringify(pdfResult),
-                    include_remediation: true
+                    parameters: {
+                        compliance_domain: 'comprehensive',
+                        document_content: JSON.stringify(pdfResult),
+                        include_remediation: true
+                    }
                 };
                 
                 addLiveThought('compliance-agent', 'Regulatory Scan', '🔍 Scanning for NERC CIP, EPA, and state utility regulations...');
@@ -800,7 +945,14 @@
                 btn.classList.toggle('active', btn.dataset.scenario === scenario);
             });
             
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.scenario === scenario);
+            });
+            
             addThought('user', 'Scenario Changed', `🎯 Switched to ${scenario.charAt(0).toUpperCase() + scenario.slice(1)} scenario`);
+            
+            // Hide insights when switching scenarios
+            document.getElementById('insightsPanel').style.display = 'none';
         }
 
         // Health Check
@@ -925,6 +1077,180 @@
 
         function sleep(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // Test with sample PDF
+        function testWithSamplePDF() {
+            const urlInput = document.getElementById('urlInput');
+            urlInput.value = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+            urlInput.dispatchEvent(new Event('input'));
+            addThought('system', 'Sample Test', '🧪 Loaded sample PDF for testing: W3C dummy.pdf');
+        }
+
+        // Demo Functions
+        async function runComplianceDemo() {
+            addThought('demo-orchestrator', 'Compliance Demo Started', '🏛️ Starting regulatory compliance demonstration...');
+            addLiveThought('compliance-agent', 'Scenario Setup', 'Simulating utility document compliance analysis');
+            
+            const sampleDocument = "ACME Utilities Power Generation and Transmission Systems Report. This document outlines our electrical infrastructure including power plants, transmission lines, and distribution networks. We operate under NERC CIP regulations and maintain EPA compliance for environmental standards.";
+            
+            await sleep(2000);
+            
+            try {
+                const payload = {
+                    parameters: {
+                        compliance_domain: 'comprehensive',
+                        document_content: sampleDocument,
+                        include_remediation: true
+                    }
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/tools/compliance_analyzer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                displayComplianceInsights(result.result);
+                
+                addThought('compliance-agent', 'Demo Complete', '✅ Compliance analysis demonstrates real regulatory intelligence');
+            } catch (error) {
+                addThought('demo-orchestrator', 'Demo Error', `❌ ${error.message}`, 'error');
+            }
+        }
+
+        async function runCustomerDemo() {
+            addThought('demo-orchestrator', 'Customer Demo Started', '👥 Starting customer experience demonstration...');
+            addLiveThought('customer-agent', 'Journey Analysis', 'Analyzing multi-channel customer interactions');
+            
+            const sampleJourney = [
+                {
+                    customer_id: "CUST12345",
+                    channel: "web",
+                    interaction_type: "billing_inquiry",
+                    timestamp: "2024-01-15T09:30:00Z",
+                    sentiment: "negative",
+                    outcome: "unresolved"
+                },
+                {
+                    customer_id: "CUST12345", 
+                    channel: "phone",
+                    interaction_type: "billing_inquiry",
+                    timestamp: "2024-01-15T14:20:00Z",
+                    sentiment: "neutral",
+                    outcome: "escalated"
+                },
+                {
+                    customer_id: "CUST12345",
+                    channel: "chat",
+                    interaction_type: "billing_inquiry", 
+                    timestamp: "2024-01-16T10:15:00Z",
+                    sentiment: "positive",
+                    outcome: "resolved"
+                }
+            ];
+            
+            await sleep(2000);
+            
+            try {
+                const payload = {
+                    parameters: {
+                        customer_interactions: sampleJourney,
+                        include_journey_mapping: true,
+                        include_sentiment_analysis: true
+                    }
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/tools/omnichannel_analyzer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                displayCustomerInsights(result.result);
+                
+                addThought('customer-agent', 'Demo Complete', '✅ Customer journey analysis shows actionable insights');
+            } catch (error) {
+                addThought('demo-orchestrator', 'Demo Error', `❌ ${error.message}`, 'error');
+            }
+        }
+
+        async function runOperationsDemo() {
+            addThought('demo-orchestrator', 'Operations Demo Started', '⚡ Starting operations intelligence demonstration...');
+            
+            const urlInput = document.getElementById('urlInput');
+            urlInput.value = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf';
+            urlInput.dispatchEvent(new Event('input'));
+            
+            await sleep(1000);
+            await processPDF('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
+        }
+
+        function displayComplianceInsights(data) {
+            const panel = document.getElementById('insightsPanel');
+            const content = document.getElementById('insightsContent');
+            
+            const criticalViolations = data.violations.filter(v => v.severity === 'critical').length;
+            const totalPenalty = data.violations.reduce((sum, v) => {
+                const penalty = v.potential_penalty.match(/\$([0-9,]+)/);
+                return sum + (penalty ? parseInt(penalty[1].replace(/,/g, '')) : 0);
+            }, 0);
+            
+            content.innerHTML = `
+                <div class="insight-item">
+                    <strong>📊 Compliance Score:</strong> ${data.overall_score}/100 (${data.risk_level.toUpperCase()} Risk)
+                </div>
+                <div class="insight-item violation-item">
+                    <strong>⚠️ Critical Violations:</strong> ${criticalViolations} found
+                    <br><small>Potential Penalties: $${totalPenalty.toLocaleString()}+ per day</small>
+                </div>
+                <div class="insight-item">
+                    <strong>🔍 Regulations Checked:</strong> NERC CIP, EPA, PUC Standards
+                </div>
+                <div class="insight-item recommendation-item">
+                    <strong>💡 Top Recommendation:</strong> Address Electronic Security Perimeters (30-day timeline)
+                    <br><small>Estimated Cost: $50k-$500k</small>
+                </div>
+                <div class="insight-item recommendation-item">
+                    <strong>📈 Business Impact:</strong> Avoid regulatory fines, improve audit readiness
+                </div>
+            `;
+            
+            panel.style.display = 'block';
+        }
+
+        function displayCustomerInsights(data) {
+            const panel = document.getElementById('insightsPanel');
+            const content = document.getElementById('insightsContent');
+            
+            const totalInteractions = data.period.total_interactions;
+            const channels = data.channel_analysis.length;
+            const topRecommendation = data.recommendations[0];
+            
+            content.innerHTML = `
+                <div class="insight-item">
+                    <strong>📊 Journey Analysis:</strong> ${totalInteractions} interactions across ${channels} channels
+                </div>
+                <div class="insight-item">
+                    <strong>🎯 Success Rate:</strong> ${Math.round(data.journey_patterns[0].success_rate * 100)}%
+                </div>
+                <div class="insight-item">
+                    <strong>⏱️ Average Resolution:</strong> ${Math.round(data.journey_patterns[0].average_duration_hours)} hours
+                </div>
+                <div class="insight-item recommendation-item">
+                    <strong>💡 Top Recommendation:</strong> ${topRecommendation}
+                </div>
+                <div class="insight-item recommendation-item">
+                    <strong>📈 Business Impact:</strong> Reduce resolution time, improve customer satisfaction
+                </div>
+                <div class="insight-item">
+                    <strong>🔍 Channels Analyzed:</strong> ${data.channel_analysis.map(c => c.channel).join(', ')}
+                </div>
+            `;
+            
+            panel.style.display = 'block';
         }
     </script>
 </body>
