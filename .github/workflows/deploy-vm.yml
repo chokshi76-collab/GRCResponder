@@ -1,0 +1,179 @@
+name: Deploy Low-Cost Windows VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - qa
+          - prod
+      adminPassword:
+        description: 'VM Admin Password (minimum 12 characters, must include uppercase, lowercase, number, and special character)'
+        required: true
+        type: string
+
+env:
+  AZURE_SUBSCRIPTION_ID: d4d5edc0-d0d0-491c-8d55-4bf5481b5b49
+
+jobs:
+  deploy-vm:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set Environment Variables
+      run: |
+        ENV_NAME="${{ github.event.inputs.environment || 'dev' }}"
+        echo "ENVIRONMENT_NAME=$ENV_NAME" >> $GITHUB_ENV
+        echo "RESOURCE_GROUP_NAME=pdf-ai-agent-rg-$ENV_NAME" >> $GITHUB_ENV
+        echo "LOCATION=westus2" >> $GITHUB_ENV
+    
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Create Resource Group
+      run: |
+        az group create \
+          --name ${{ env.RESOURCE_GROUP_NAME }} \
+          --location ${{ env.LOCATION }}
+    
+    - name: Validate Password Complexity
+      run: |
+        PASSWORD="${{ github.event.inputs.adminPassword }}"
+        if [[ ${#PASSWORD} -lt 12 ]]; then
+          echo "❌ Password must be at least 12 characters"
+          exit 1
+        fi
+        if [[ ! "$PASSWORD" =~ [A-Z] ]]; then
+          echo "❌ Password must contain uppercase letter"
+          exit 1
+        fi
+        if [[ ! "$PASSWORD" =~ [a-z] ]]; then
+          echo "❌ Password must contain lowercase letter"
+          exit 1
+        fi
+        if [[ ! "$PASSWORD" =~ [0-9] ]]; then
+          echo "❌ Password must contain number"
+          exit 1
+        fi
+        if [[ ! "$PASSWORD" =~ [^a-zA-Z0-9] ]]; then
+          echo "❌ Password must contain special character"
+          exit 1
+        fi
+        echo "✅ Password meets complexity requirements"
+    
+    - name: Deploy Low-Cost Infrastructure
+      run: |
+        echo "Deploying ultra-low-cost Windows VM infrastructure..."
+        az deployment group create \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --template-file infrastructure/bicep/complete-low-cost.bicep \
+          --parameters environmentName=${{ env.ENVIRONMENT_NAME }} \
+          --parameters adminUsername=vmadmin \
+          --parameters adminPassword="${{ github.event.inputs.adminPassword }}" \
+          --mode Incremental \
+          --name "vm-deploy-$(date +%Y%m%d-%H%M%S)"
+    
+    - name: Get Deployment Outputs
+      id: outputs
+      run: |
+        # Get the latest deployment
+        DEPLOYMENT_NAME=$(az deployment group list \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --query "[?contains(name, 'vm-deploy')][0].name" -o tsv)
+        
+        echo "Latest deployment: $DEPLOYMENT_NAME"
+        
+        # Get outputs
+        VM_PUBLIC_IP=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.vmPublicIP.value' -o tsv)
+        
+        RDP_COMMAND=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.rdpCommand.value' -o tsv)
+        
+        DEMO_URL=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.demoUrl.value' -o tsv)
+        
+        STORAGE_URL=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.staticWebsiteUrl.value' -o tsv)
+        
+        echo "vmPublicIP=$VM_PUBLIC_IP" >> $GITHUB_OUTPUT
+        echo "rdpCommand=$RDP_COMMAND" >> $GITHUB_OUTPUT
+        echo "demoUrl=$DEMO_URL" >> $GITHUB_OUTPUT
+        echo "storageUrl=$STORAGE_URL" >> $GITHUB_OUTPUT
+    
+    - name: Display Access Information
+      run: |
+        echo "🎉 Low-Cost Windows VM Deployed Successfully!"
+        echo ""
+        echo "💰 COST BREAKDOWN:"
+        echo "   VM (Standard_B1s): ~$12-15/month"
+        echo "   Storage (127GB LRS): ~$2-3/month"
+        echo "   Network (Basic): ~$1-2/month"
+        echo "   TOTAL: ~$15-20/month"
+        echo ""
+        echo "🔧 ACCESS INFORMATION:"
+        echo "   RDP: ${{ steps.outputs.outputs.rdpCommand }}"
+        echo "   Username: vmadmin"
+        echo "   Password: [provided in workflow input]"
+        echo ""
+        echo "🌐 DEMO URLS:"
+        echo "   VM Demo: ${{ steps.outputs.outputs.demoUrl }}"
+        echo "   Storage Website: ${{ steps.outputs.outputs.storageUrl }}"
+        echo ""
+        echo "💡 COST OPTIMIZATION:"
+        echo "   ✅ VM auto-shuts down at 7 PM daily"
+        echo "   ✅ Cheapest VM size (B1s burstable)"
+        echo "   ✅ Standard_LRS storage"
+        echo "   ✅ Basic network configuration"
+        echo ""
+        echo "📝 NEXT STEPS:"
+        echo "   1. RDP to VM: ${{ steps.outputs.outputs.rdpCommand }}"
+        echo "   2. Navigate to C:\\GRCResponder\\demo"
+        echo "   3. Run: python -m http.server 3000"
+        echo "   4. Access demo at: ${{ steps.outputs.outputs.demoUrl }}"
+        echo ""
+        echo "⚠️  IMPORTANT: VM will auto-shutdown at 7 PM to minimize costs!"
+    
+    - name: Upload Demo to Storage Account (Alternative)
+      run: |
+        echo "Uploading demo files to storage account for static hosting..."
+        
+        # Get storage account name from deployment
+        DEPLOYMENT_NAME=$(az deployment group list \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --query "[?contains(name, 'vm-deploy')][0].name" -o tsv)
+        
+        STORAGE_ACCOUNT=$(az deployment group show \
+          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+          --name "$DEPLOYMENT_NAME" \
+          --query 'properties.outputs.storageWebUrl.value' -o tsv)
+        
+        # Extract storage account name
+        STORAGE_NAME=$(echo $STORAGE_ACCOUNT | cut -d'.' -f1)
+        
+        # Upload demo files
+        az storage blob upload-batch \
+          --account-name $STORAGE_NAME \
+          --destination '$web' \
+          --source demo/ \
+          --auth-mode login || echo "Storage upload failed, use VM instead"
+        
+        echo "Demo also available at: https://$STORAGE_ACCOUNT"

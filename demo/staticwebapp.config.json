@@ -2,19 +2,19 @@
   "routes": [
     {
       "route": "/",
-      "serve": "/enhanced-transparency-demo.html"
+      "rewrite": "/enhanced-transparency-demo.html"
     },
     {
       "route": "/demo",
-      "serve": "/enhanced-transparency-demo.html"
+      "rewrite": "/enhanced-transparency-demo.html"
     },
     {
       "route": "/transparency",
-      "serve": "/enhanced-transparency-demo.html"
+      "rewrite": "/enhanced-transparency-demo.html"
     },
     {
       "route": "/original",
-      "serve": "/transparency-demo.html"
+      "rewrite": "/transparency-demo.html"
     }
   ],
   "navigationFallback": {
