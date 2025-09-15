@@ -9,7 +9,7 @@ param adminUsername string = 'vmadmin'
 
 @description('Admin password for the VM')
 @secure()
-param adminPassword string = 'SecureVM2024!'
+param adminPassword string
 
 @description('Secret name for admin password in Key Vault')
 param adminPasswordSecretName string = 'vm-admin-password'
@@ -19,6 +19,7 @@ var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 
 // VM Configuration (Ultra low cost)
 var vmName = 'vm-pdfai-${environmentName}-${uniqueSuffix}'
+var computerName = 'vm-${take(uniqueSuffix, 6)}' // Windows limit: 15 chars
 var networkSecurityGroupName = 'nsg-pdfai-vm-${environmentName}-${uniqueSuffix}'
 var virtualNetworkName = 'vnet-pdfai-vm-${environmentName}-${uniqueSuffix}'
 var publicIPName = 'pip-pdfai-vm-${environmentName}-${uniqueSuffix}'
@@ -209,7 +210,7 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
       vmSize: 'Standard_B1s' // $12-15/month
     }
     osProfile: {
-      computerName: vmName
+      computerName: computerName
       adminUsername: adminUsername
       adminPassword: adminPassword
       windowsConfiguration: {
