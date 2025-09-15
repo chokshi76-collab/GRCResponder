@@ -1,6 +1,8 @@
 @description('Environment name (dev, staging, prod)')
 param environmentName string = 'dev'
 
+// Retry deployment after authentication issue - Windows 10 Pro with activation
+
 @description('Location for all resources')
 param location string = resourceGroup().location
 
