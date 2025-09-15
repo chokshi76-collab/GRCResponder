@@ -89,10 +89,10 @@ resource publicIP 'Microsoft.Network/publicIPAddresses@2023-06-01' = {
   name: publicIPName
   location: location
   sku: {
-    name: 'Basic'
+    name: 'Standard'
   }
   properties: {
-    publicIPAllocationMethod: 'Dynamic'
+    publicIPAllocationMethod: 'Static'
     dnsSettings: {
       domainNameLabel: toLower('${vmName}-${uniqueSuffix}')
     }
@@ -131,7 +131,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   kind: 'StorageV2'
   properties: {
     accessTier: 'Hot'
-    allowBlobPublicAccess: true
+    allowBlobPublicAccess: false
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
   }
@@ -156,12 +156,12 @@ resource storageAccountWeb 'Microsoft.Storage/storageAccounts/blobServices@2023-
   }
 }
 
-// $web container for static website
-resource webContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+// Private container for VM files
+resource privateContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
   parent: storageAccountWeb
-  name: '$web'
+  name: 'vm-files'
   properties: {
-    publicAccess: 'Blob'
+    publicAccess: 'None'
   }
 }
 
