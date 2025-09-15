@@ -7,9 +7,11 @@ param location string = resourceGroup().location
 @description('Admin username for the VM')
 param adminUsername string = 'vmadmin'
 
-@description('Admin password for the VM')
-@secure()
-param adminPassword string
+@description('Key Vault name containing the admin password')
+param keyVaultName string = 'kv-pdfai-${environmentName}-${uniqueSuffix}'
+
+@description('Secret name for admin password in Key Vault')
+param adminPasswordSecretName string = 'vm-admin-password'
 
 // Generate unique names with environment suffix
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
@@ -23,6 +25,9 @@ var networkInterfaceName = 'nic-pdfai-vm-${environmentName}-${uniqueSuffix}'
 
 // Storage Account for Static Website (alternative to Static Web Apps)
 var storageAccountName = 'stpdfai${environmentName}${uniqueSuffix}'
+
+// Key Vault Configuration
+var actualKeyVaultName = take('kv-pdfai-${environmentName}-${uniqueSuffix}', 24)
 
 // Network Security Group
 resource networkSecurityGroup 'Microsoft.Network/networkSecurityGroups@2023-06-01' = {
@@ -163,6 +168,37 @@ resource webContainer 'Microsoft.Storage/storageAccounts/blobServices/containers
   }
 }
 
+// Key Vault for storing VM admin password
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
+  name: actualKeyVaultName
+  location: location
+  properties: {
+    tenantId: subscription().tenantId
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    accessPolicies: []
+    enabledForDeployment: true
+    enabledForTemplateDeployment: true
+    enabledForDiskEncryption: false
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+    createMode: 'default'
+  }
+}
+
+// Store VM admin password in Key Vault
+resource adminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: adminPasswordSecretName
+  properties: {
+    value: 'SecureVM2024!' // This will be updated by deployment pipeline
+    contentType: 'VM Admin Password'
+  }
+}
+
 // Ultra-low-cost VM
 resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   name: vmName
@@ -174,7 +210,7 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
     osProfile: {
       computerName: vmName
       adminUsername: adminUsername
-      adminPassword: adminPassword
+      adminPassword: adminPasswordSecret.properties.value
       windowsConfiguration: {
         enableAutomaticUpdates: true
         provisionVMAgent: true
@@ -252,6 +288,8 @@ output rdpCommand string = 'mstsc /v:${publicIP.properties.dnsSettings.fqdn}'
 output demoUrl string = 'http://${publicIP.properties.dnsSettings.fqdn}:3000'
 output storageWebUrl string = replace(replace(storageAccount.properties.primaryEndpoints.web, 'https://', ''), '/', '')
 output staticWebsiteUrl string = storageAccount.properties.primaryEndpoints.web
+output keyVaultName string = keyVault.name
+output adminPasswordSecretName string = adminPasswordSecret.name
 
 // Cost breakdown
 output costAnalysis object = {
