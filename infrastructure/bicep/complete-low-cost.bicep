@@ -16,7 +16,7 @@ param adminPassword string
 @description('Secret name for admin password in Key Vault')
 param adminPasswordSecretName string = 'vm-admin-password'
 
-// Generate unique names with environment suffix
+// Generate unique names with environment suffix  
 var uniqueSuffix = take(uniqueString(resourceGroup().id, environmentName), 8)
 
 // VM Configuration (Ultra low cost)
