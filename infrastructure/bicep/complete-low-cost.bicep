@@ -296,8 +296,8 @@ output keyVaultName string = keyVault.name
 output costAnalysis object = {
   vm: {
     size: 'Standard_B1s'
-    estimatedMonthlyCost: '$18-22 USD'
-    features: ['1 vCPU', '1 GB RAM', 'Windows 10 Pro licensed', 'Burstable performance']
+    estimatedMonthlyCost: '$5-6 USD (6 hrs/day usage)'
+    features: ['1 vCPU', '1 GB RAM', 'Windows 10 Pro licensed', 'Burstable performance', 'Pay-per-minute billing']
   }
   storage: {
     type: 'Standard_LRS'
@@ -310,9 +310,9 @@ output costAnalysis object = {
     features: ['Dynamic IP', 'Basic NSG']
   }
   total: {
-    estimatedMonthlyCost: '$21-27 USD'
+    estimatedMonthlyCost: '$8-11 USD (6 hrs/day usage)'
     dailyShutdown: 'Auto-shutdown at 7 PM to minimize costs'
-    optimization: 'Windows 10 Pro with automatic activation + cheapest available tiers'
+    optimization: 'Windows 10 Pro + pay-per-minute billing + manual shutdown for 73% cost reduction'
   }
 }
 
