@@ -101,7 +101,7 @@ jobs:
         # Get the latest deployment
         DEPLOYMENT_NAME=$(az deployment group list \
           --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --query "[?contains(name, 'vm-deploy')][0].name" -o tsv)
+          --query "[0].name" -o tsv)
         
         echo "Latest deployment: $DEPLOYMENT_NAME"
         
