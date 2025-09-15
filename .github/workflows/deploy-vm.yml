@@ -91,28 +91,9 @@ jobs:
           --template-file infrastructure/bicep/complete-low-cost.bicep \
           --parameters environmentName=${{ env.ENVIRONMENT_NAME }} \
           --parameters adminUsername=vmadmin \
+          --parameters adminPassword="${{ env.VM_ADMIN_PASSWORD }}" \
           --mode Incremental \
           --name "vm-deploy-$(date +%Y%m%d-%H%M%S)"
-    
-    - name: Update Key Vault Secret
-      run: |
-        # Get the Key Vault name from deployment output
-        DEPLOYMENT_NAME=$(az deployment group list \
-          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --query "[?contains(name, 'vm-deploy')][0].name" -o tsv)
-        
-        KEY_VAULT_NAME=$(az deployment group show \
-          --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-          --name "$DEPLOYMENT_NAME" \
-          --query 'properties.outputs.keyVaultName.value' -o tsv)
-        
-        # Update the admin password secret
-        az keyvault secret set \
-          --vault-name "$KEY_VAULT_NAME" \
-          --name "vm-admin-password" \
-          --value "${{ env.VM_ADMIN_PASSWORD }}"
-        
-        echo "✅ Admin password stored securely in Key Vault: $KEY_VAULT_NAME"
     
     - name: Get Deployment Outputs
       id: outputs

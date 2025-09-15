@@ -7,6 +7,10 @@ param location string = resourceGroup().location
 @description('Admin username for the VM')
 param adminUsername string = 'vmadmin'
 
+@description('Admin password for the VM')
+@secure()
+param adminPassword string = 'SecureVM2024!'
+
 @description('Secret name for admin password in Key Vault')
 param adminPasswordSecretName string = 'vm-admin-password'
 
@@ -191,7 +195,7 @@ resource adminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: adminPasswordSecretName
   properties: {
-    value: 'SecureVM2024!' // This will be updated by deployment pipeline
+    value: adminPassword
     contentType: 'VM Admin Password'
   }
 }
@@ -207,7 +211,7 @@ resource windowsVM 'Microsoft.Compute/virtualMachines@2023-07-01' = {
     osProfile: {
       computerName: vmName
       adminUsername: adminUsername
-      adminPassword: adminPasswordSecret.properties.value
+      adminPassword: adminPassword
       windowsConfiguration: {
         enableAutomaticUpdates: true
         provisionVMAgent: true
